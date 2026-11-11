@@ -49,6 +49,8 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().min(1).default('fvl-login'),
   JWT_AUDIENCE: z.string().min(1).default('fvl-clients'),
 
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+
   DB_SERVER: z.string().min(1),
   DB_PORT: z.coerce.number().int().min(1).max(65535).default(1433),
   DB_DATABASE: z.string().min(1),
@@ -106,6 +108,7 @@ export interface AppConfig {
     poolMax: number;
     connectTimeoutMs: number;
   };
+  refresh: { ttlDays: number };
   cors: { allowedOrigins: string[] };
   trustedProxyCidrs: string[];
   rateLimit: {
@@ -157,6 +160,7 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     poolMax: valores.DB_POOL_MAX,
     connectTimeoutMs: valores.DB_POOL_CONNECT_TIMEOUT,
   },
+  refresh: { ttlDays: valores.REFRESH_TOKEN_TTL_DAYS },
   cors: { allowedOrigins: valores.CORS_ALLOWED_ORIGINS },
   trustedProxyCidrs: valores.TRUSTED_PROXY_CIDRS,
   rateLimit: {
@@ -192,5 +196,18 @@ export const loadConfig = (source: NodeJS.ProcessEnv = process.env): AppConfig =
     throw new Error(`Configuracion de entorno invalida: ${detalle}`);
   }
 
-  return toAppConfig(resultado.data);
+  const config = toAppConfig(resultado.data);
+
+  // El transporte de consola imprime el cuerpo del correo, que incluye el token de un solo uso.
+  // Por eso solo se admite en desarrollo y no en los ambientes de calidad o produccion.
+  if (
+    config.ambiente !== 'dev' &&
+    (config.mail.transport === 'console' || config.mail.host === '')
+  ) {
+    throw new Error(
+      'Configuracion de entorno invalida: SMTP_HOST y MAIL_TRANSPORT=smtp son obligatorios fuera del ambiente dev',
+    );
+  }
+
+  return config;
 };

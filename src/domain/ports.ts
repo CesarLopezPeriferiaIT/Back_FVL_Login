@@ -44,7 +44,7 @@ export interface LogSessionRepository {
   ): Promise<LogSession>;
   rotarRefresh(uuid: string, refreshTokenHash: string, refreshExpiresAt: Date): Promise<void>;
   revocarSesion(uuid: string): Promise<void>;
-  revocarSesionesDeUsuario(uuidUsuario: string): Promise<void>;
+  revocarSesionesDeUsuario(uuidUsuario: string, exceptoSessionUuid?: string): Promise<void>;
   contarIntentosFallidosDesdeUltimoExito(uuidUsuario: string): Promise<number>;
   buscarSesionPorHash(refreshTokenHash: string): Promise<LogSession | null>;
 }
