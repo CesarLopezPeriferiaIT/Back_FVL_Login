@@ -4,7 +4,7 @@
  * Compone las dependencias reales (base de datos, correo, tokens) y arranca el servidor HTTP.
  * Toda la logica de negocio vive en los servicios de dominio, que aqui solo se conectan.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import 'dotenv/config';

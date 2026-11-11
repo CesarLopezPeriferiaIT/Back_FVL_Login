@@ -5,7 +5,7 @@
  * no cumple la longitud minima, porque los lineamientos exigen no dejar configuraciones por
  * defecto en los ambientes de despliegue.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { z } from 'zod';

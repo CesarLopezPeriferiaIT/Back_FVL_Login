@@ -4,7 +4,7 @@
  * Los lineamientos prohiben almacenar credenciales en texto plano, por lo que la contrasena solo
  * existe en memoria mientras dura la peticion.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { hash, verify } from '@node-rs/argon2';

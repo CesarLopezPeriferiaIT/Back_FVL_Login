@@ -1,7 +1,7 @@
 /**
  * Verify the error handler exposes safe responses for every kind of failure.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import express from 'express';

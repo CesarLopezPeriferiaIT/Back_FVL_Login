@@ -1,7 +1,7 @@
 /**
  * Limit login and registration attempts by identifier and client IP.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';

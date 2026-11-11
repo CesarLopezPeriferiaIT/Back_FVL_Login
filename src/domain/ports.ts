@@ -4,7 +4,7 @@
  * Los repositorios se declaran como interfaces para que el dominio no dependa de SQL Server y
  * pueda probarse con dobles en memoria.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import type {

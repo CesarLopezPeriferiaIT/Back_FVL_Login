@@ -1,7 +1,7 @@
 /**
  * Verify the SQL Server connection pool is created and closed with the expected settings.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { describe, expect, it, vi } from 'vitest';

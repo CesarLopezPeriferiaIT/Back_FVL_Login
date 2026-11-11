@@ -4,7 +4,7 @@
  * Una fila con successful = 0 es un intento fallido; una fila con successful = 1 es una sesion
  * abierta y por lo tanto guarda el refresh token hasheado.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { randomUUID } from 'node:crypto';

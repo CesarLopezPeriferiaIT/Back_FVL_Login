@@ -5,7 +5,7 @@
  * una unica vez, durante el registro de la instalacion, y el cliente debe guardarlo en un
  * almacen seguro del dispositivo.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { randomUUID } from 'node:crypto';

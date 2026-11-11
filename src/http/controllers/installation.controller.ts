@@ -1,7 +1,7 @@
 /**
  * Register client installations and disclose their keys once.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import type { RequestHandler } from 'express';

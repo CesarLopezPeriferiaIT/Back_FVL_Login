@@ -4,7 +4,7 @@
  * Solo se persiste el hash SHA-256 de la clave: el valor en texto plano se entrega una unica
  * vez al cliente durante el registro de la instalacion.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import sql from 'mssql';

@@ -1,7 +1,7 @@
 /**
  * Verify configuration, logging, mail transports and database error classification.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { describe, expect, it, vi } from 'vitest';

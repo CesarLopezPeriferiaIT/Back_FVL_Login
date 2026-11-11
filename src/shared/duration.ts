@@ -1,7 +1,7 @@
 /**
  * Conversion de duraciones al estilo de jsonwebtoken a segundos.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 

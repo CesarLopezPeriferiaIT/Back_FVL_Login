@@ -4,7 +4,7 @@
  * El contenido esta en espanol porque es la communication directa con el usuario final de las
  * aplicaciones de la Fundacion.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 

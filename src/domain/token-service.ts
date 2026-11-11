@@ -5,7 +5,7 @@
  * autenticadas, token de confirmacion de correo y token de reseteo de contrasena. La separacion
  * de secretos garantiza que un token de un tipo no pueda usarse como si fuera de otro.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import jwt from 'jsonwebtoken';

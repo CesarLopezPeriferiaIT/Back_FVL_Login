@@ -1,7 +1,7 @@
 /**
  * Normalizacion de direcciones de correo electronico.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 

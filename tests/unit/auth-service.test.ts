@@ -1,7 +1,7 @@
 /**
  * Pruebas de las reglas de negocio del registro, la confirmacion y el inicio de sesion.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { describe, expect, it } from 'vitest';

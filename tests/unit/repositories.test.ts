@@ -1,7 +1,7 @@
 /**
  * Verify SQL repository queries use parameters, map rows correctly and fail safely.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { describe, expect, it } from 'vitest';

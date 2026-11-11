@@ -4,7 +4,7 @@
  * Los eventos se escriben en la salida estandar para que los pueda recolectar el orquestador de
  * infraestructura sin depender de un formato propietario.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 

@@ -4,7 +4,7 @@
  * Los scripts se ejecutan en orden alfabetico y cada bloque separado por GO se envia como un
  * lote independiente, de modo que los archivos pueden reutilizarse con sqlcmd.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import 'dotenv/config';

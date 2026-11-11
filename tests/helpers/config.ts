@@ -1,7 +1,7 @@
 /**
  * Configuracion de prueba con valores validos y deterministas.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import type { AppConfig } from '../../src/config/env.js';

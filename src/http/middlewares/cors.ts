@@ -1,7 +1,7 @@
 /**
  * Restrict cross-origin access to explicitly allowed origins.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import cors from 'cors';

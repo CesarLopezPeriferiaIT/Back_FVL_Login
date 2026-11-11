@@ -1,7 +1,7 @@
 /**
  * Errores de aplicacion y utilidades para clasificar los errores del driver de base de datos.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 

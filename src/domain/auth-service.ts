@@ -1,7 +1,7 @@
 /**
  * Reglas de negocio del registro, la confirmacion de correo y el inicio de sesion.
  *
- * @author Javier Murcia <javier.murcia.ro@fvl.org.co>
+ * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { randomUUID } from 'node:crypto';
