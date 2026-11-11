@@ -40,12 +40,17 @@ cp .envexample .env
 # Levantar SQL Server y el servicio.
 docker compose up -d
 
-# Aplicar el esquema (crea las tablas si no existen).
+# Aplicar el esquema. Si la base de datos FVL_Login todavia no existe, el script la crea de
+# forma idempotente y despues aplica las tablas. Volver a ejecutarlo no vuelve a crearla.
 bun run db:init
 
 # Ejecutar en modo vigilancia.
 bun run dev
 ```
+
+En los ambientes de calidad y produccion la base de datos la crea el administrador de bases de
+datos y el rol de la aplicacion solo necesita permisos de lectura y escritura sobre ella. En ese
+caso el script nunca intenta crearla y solo aplica el esquema.
 
 ## Verificacion
 

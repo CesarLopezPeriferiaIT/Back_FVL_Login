@@ -14,6 +14,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 -API Key de cliente almacenada como hash SHA-256 y endpoint público de registro de instalaciones.
 -Cabeceras de seguridad con Helmet, CORS por lista explícita y límites por identificador y dirección IP.
 -Esquema idempotente de las tablas Usuario, LogSession y ApiKey en SQL Server.
+-Creación idempotente de la base de datos por código al aplicar el esquema.
 -Imagen Docker multietapa con node:24-alpine, Docker Compose con SQL Server y configuración de referencia nginx con TLS.
 -Suite automatizada con Vitest y supertest.
 -Guía de consumo de la API en `docs/api-guide.html`.

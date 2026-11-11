@@ -13,13 +13,19 @@ export type Database = sql.ConnectionPool;
 /**
  * Crea el pool de conexiones y verifica la conectividad con el servidor.
  *
+ * @param config Configuracion validada del servicio.
+ * @param database Catalogo inicial de la conexion. Por defecto es la base de la aplicacion; se
+ *   usa `master` para las tareas de administracion de la base.
  * @throws Error cuando el servidor no responde o las credenciales son invalidas.
  */
-export const createPool = async (config: AppConfig): Promise<Database> => {
+export const createPool = async (
+  config: AppConfig,
+  database: string = config.db.database,
+): Promise<Database> => {
   const pool = new sql.ConnectionPool({
     server: config.db.server,
     port: config.db.port,
-    database: config.db.database,
+    database,
     user: config.db.user,
     password: config.db.password,
     connectionTimeout: config.db.connectTimeoutMs,

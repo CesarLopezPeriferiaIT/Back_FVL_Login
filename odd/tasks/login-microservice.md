@@ -265,3 +265,12 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   el diff de contenido entre el respaldo y la rama reescrita quedo vacio, lo que demuestra que
   solo cambio la autoria y no el codigo. Las referencias de commit de la tabla de tareas se
   actualizaron a los nuevos identificadores.
+- L8 (2026-11-11) - Creacion de la base de datos por codigo, a solicitud del usuario: el script
+  `db:init` verifica primero si la base existe y, cuando falta, se conecta a `master` y la crea
+  de forma idempotente antes de aplicar el esquema. El nombre se valida contra un formato estricto
+  porque se interpola en una sentencia `CREATE DATABASE`, que no admite parametros. En calidad y
+  produccion la base la crea el administrador de bases de datos y el rol de la aplicacion solo
+  necesita permisos de lectura y escritura, por lo que alli el script nunca intenta crearla.
+  Verificado con tres ejecuciones consecutivas sobre un SQL Server recien creado: la primera creo
+  la base y aplico el esquema, las dos siguientes no recrearon nada y dejaron una sola copia de
+  cada tabla. El flujo completo de la API se valido de nuevo contra esa base.
