@@ -86,6 +86,13 @@
         <code>/backend/dev/v1</code>; depende de <code>APP_ENV</code> y <code>API_VERSION</code>.
         Las rutas públicas de diagnóstico <code>/</code> y <code>/health</code> no llevan prefijo.
       </p>
+      <p>
+        El servicio publica además una documentación interactiva en <code>/api-docs</code> y el
+        documento OpenAPI 3.1 en <code>/api-docs.json</code>. Los cuerpos de las peticiones que
+        muestra la interfaz se derivan de los mismos validadores que validan el tráfico en tiempo de
+        ejecución, de modo que la documentación no puede desincronizarse de lo que el servicio
+        realmente acepta.
+      </p>
     </header>
     <main>
       <section>
@@ -537,7 +544,7 @@ HTTP/1.1 200 OK
       <section>
         <h2>Variables de entorno</h2>
         <p>
-          Consulte <code>.envexample</code> para la plantilla completa. Configure secretos mediante
+          Consulte <code>.env.example</code> para la plantilla completa. Configure secretos mediante
           un mecanismo seguro; no los incluya en clientes ni imágenes. Fuera de desarrollo se
           requiere SMTP.
         </p>

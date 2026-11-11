@@ -185,6 +185,7 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
 | T7  | S24                                              | Suite automatizada: unitarias de dominio e integracion HTTP con `supertest`, cobertura minima 80 %                                                                                                                                     | inline | `84f4c64 ADD DOMAIN TEST SUITE`                    |
 | T8  | S2, S17, S24                                     | Artefactos de despliegue: `Dockerfile` multi-etapa `node:24-alpine` con `npm ci`, `docker-compose.yml` con SQL Server, `nginx` de referencia con TLS, healthcheck                                                                      | worker | `e852418 ADD DOCKER DEPLOYMENT ARTIFACTS`          |
 | T9  | S15, S23, S24                                    | Documentacion: `docs/api-guide.html`, `CHANGELOG.md`, guia de operacion, pendientes (CAPTCHA, desbloqueo administrativo, OAuth PKCE, LDAP)                                                                                             | inline | `7785b23 ADD API DOCUMENTATION AND CHANGELOG`      |
+| T10 | S24                                              | Documentacion interactiva: Swagger UI en `/api-docs` y documento OpenAPI 3.1 en `/api-docs.json`, con los cuerpos de peticion derivados de los validadores zod                                                                         | inline | `pendiente`                                        |
 
 ## Log
 
@@ -233,7 +234,7 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   - El transporte de correo de consola, que imprime el cuerpo del mensaje con el token de un solo
     uso, solo se admite en el ambiente `dev`. La configuracion falla de forma explicita si se
     intenta usar en `qas` o `prd`.
-  - La plantilla de variables de entorno se versiona como `.envexample`. El archivo `.env` con
+  - La plantilla de variables de entorno se versiona como `.env.example`. El archivo `.env` con
     valores reales nunca se versiona. El PDF acepta cualquier nombre de plantilla siempre que cada
     parametro este comentado.
   - El limite de intentos por identificador y por direccion IP se configura por variable de
@@ -274,3 +275,23 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   Verificado con tres ejecuciones consecutivas sobre un SQL Server recien creado: la primera creo
   la base y aplico el esquema, las dos siguientes no recrearon nada y dejaron una sola copia de
   cada tabla. El flujo completo de la API se valido de nuevo contra esa base.
+- L9 (2026-11-11) - Documentacion interactiva a solicitud del usuario:
+  - El servicio publica la interfaz Swagger UI en `/api-docs` y el documento OpenAPI 3.1 en
+    `/api-docs.json`. Los cuerpos de las peticiones se derivan de los mismos validadores `zod` que
+    validan el trafico en tiempo de ejecucion, con `z.toJSONSchema`, de modo que la documentacion
+    no puede desincronizarse de lo que el servicio acepta.
+  - La interfaz tiene su propia politica de seguridad de contenido, que permite sus scripts y
+    estilos propios y mantiene la prohibicion de ser embebida en marcos. El resto de la API
+    conserva la politica estricta que solo admite JSON.
+  - Los recursos de la interfaz se sirven desde la instalacion local de `swagger-ui-dist`, nunca
+    desde un CDN de terceros.
+  - Se corrigieron cinco referencias al nombre de la plantilla de variables de entorno que
+    quedaron mal compuestas al renombrarla: dos de ellas ya estaban publicadas en la rama
+    remota. El archivo en disco siempre tuvo el nombre correcto; solo el texto de la documentacion
+    era incorrecto.
+  - El `Dockerfile` ahora instala con `--ignore-scripts`. Ningun binario nativo del proyecto lo
+    necesita y una de las dependencias de produccion ejecuta telemetria saliente desde su
+    `postinstall`. Se verifico que argon2id sigue funcionando en el contenedor con esa opcion.
+  - Al agregar dependencias con Bun, el `package-lock.json` de npm quedo desincronizado y la
+    construccion de la imagen fallo en `npm ci`. Se regenero el lockfile de npm, que es el que usa
+    la imagen.

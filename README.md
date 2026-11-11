@@ -9,13 +9,15 @@ Subdireccion de Informatica.
 
 ## Documentacion
 
-| Artefacto                             | Ubicacion                         |
-| ------------------------------------- | --------------------------------- |
-| Especificacion funcional y técnica    | `odd/tasks/login-microservice.md` |
-| Guia de consumo de la API             | `docs/api-guide.html`             |
-| Registro de cambios                   | `CHANGELOG.md`                    |
-| Esquema de base de datos              | `db/init/`                        |
-| Configuracion de variables de entorno | `.envexample` (plantilla)         |
+| Artefacto                              | Ubicacion                                  |
+| -------------------------------------- | ------------------------------------------ |
+| Especificacion funcional y técnica     | `odd/tasks/login-microservice.md`          |
+| Guia de consumo de la API              | `docs/api-guide.html`                      |
+| Documentacion interactiva (Swagger UI) | `/api-docs` del servicio en ejecucion      |
+| Documento OpenAPI 3.1                  | `/api-docs.json` del servicio en ejecucion |
+| Registro de cambios                    | `CHANGELOG.md`                             |
+| Esquema de base de datos               | `db/init/`                                 |
+| Configuracion de variables de entorno  | `.env.example` (plantilla)                 |
 
 ## Requisitos
 
@@ -32,7 +34,7 @@ bun install
 
 # Copiar la plantilla de variables de entorno y ajustar los valores.
 # La plantilla se versiona; el archivo .env con valores reales nunca se versiona.
-cp .envexample .env
+cp .env.example .env
 
 # Definir en el archivo .env los secretos que el compose exige de forma explicita:
 # JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET, DB_USER y DB_PASSWORD.
@@ -68,6 +70,24 @@ bun run test:coverage # Vitest con cobertura minima de 80 %
 - TypeScript estricto sin `any`; en la frontera de entrada se usa `unknown` y se reduce por validacion.
 - Programacion funcional; sin estado mutable compartido.
 - Todo archivo abre con un bloque JSDoc con descripcion en ingles, `@author` y `@version`.
+
+## Documentacion interactiva
+
+El servicio publica la documentacion de consumo en dos formatos:
+
+- **`/api-docs`**: interfaz interactiva (Swagger UI) con ejecucion de peticiones desde el navegador.
+- **`/api-docs.json`**: documento OpenAPI 3.1, para importarlo en Postman, Insomnia o en la
+  generacion automatica de clientes.
+
+Los cuerpos de las peticiones que muestra la documentacion se derivan de los mismos validadores
+`zod` que validan el trafico en tiempo de ejecucion, de modo que la documentacion no puede
+desincronizarse de lo que el servicio realmente acepta.
+
+Los recursos de la interfaz se sirven desde la instalacion local de `swagger-ui-dist`, nunca desde
+un CDN de terceros. La interfaz tiene su propia politica de seguridad de contenido, que permite sus
+scripts y estilos y mantiene la prohibicion de ser embebida en marcos; el resto de la API sigue con
+la politica estricta que solo admite JSON. Si la politica institucional exige que la documentacion
+no sea alcanzable desde la red, se puede restringir la ruta en el `nginx` de referencia.
 
 ## Estado y pendientes
 

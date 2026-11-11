@@ -16,6 +16,7 @@ import { securityHeaders } from './http/middlewares/security-headers.js';
 import { corsPermitido } from './http/middlewares/cors.js';
 import { manejadorErrores } from './http/middlewares/error-handler.js';
 import { notFound } from './http/middlewares/not-found.js';
+import { crearRutaDocumentacion } from './http/middlewares/openapi-docs.js';
 import { createRoutes } from './http/routes/index.js';
 import { responderOk } from './http/http-response.js';
 
@@ -35,6 +36,7 @@ export const createApp = (deps: AppDeps): Express => {
   if (deps.config.cors.allowedOrigins.length > 0)
     app.use(corsPermitido(deps.config.cors.allowedOrigins));
   app.use(express.json());
+  app.use(crearRutaDocumentacion(deps.config));
   app.get('/', (_req, res) =>
     responderOk(res, 'Servicio disponible.', {
       servicio: 'login',
