@@ -44,6 +44,7 @@ export interface AuthService {
   renovarSesion(tokenRefresh: string): Promise<ResultadoSesion>;
   cerrarSesion(sessionId: string): Promise<void>;
   solicitarReseteo(email: string): Promise<void>;
+  verificarEnlaceReseteo(token: string): Promise<{ email: string }>;
   resetearContrasena(params: { token: string; nuevaPassword: string }): Promise<void>;
   cambiarContrasena(params: {
     uuidUsuario: string;
@@ -133,6 +134,24 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
     );
 
     return construirResultadoSesion(usuario, sesion.uuid, tokenRefresh, refreshExpiresAt);
+  };
+
+  /**
+   * Resuelve el enlace de reseteo y devuelve la cuenta asociada.
+   *
+   * La huella de la contrasena vigente viaja dentro del token, de modo que un enlace ya utilizado
+   * deja de coincidir en cuanto la contrasena cambia. Asi el enlace es de un solo uso sin
+   * necesidad de una tabla adicional que guarde el historial de tokens consumidos.
+   */
+  const resolverEnlaceReseteo = async (token: string): Promise<Usuario> => {
+    const claims = tokens.verificarTokenReseteo(token);
+    const usuario = await usuarios.findByEmail(normalizarEmail(claims.email));
+
+    if (!usuario || huellaDePassword(usuario.passHash) !== claims.pwd) {
+      throw new AppError('TOKEN_INVALIDO', 'El enlace no es valido o ya fue utilizado.', 400);
+    }
+
+    return usuario;
   };
 
   return {
@@ -309,14 +328,13 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
       await enviarCorreo(() => correo.enviarReseteo(correoNormalizado, enlace));
     },
 
+    verificarEnlaceReseteo: async (token: string): Promise<{ email: string }> => {
+      const usuario = await resolverEnlaceReseteo(token);
+      return { email: usuario.email };
+    },
+
     resetearContrasena: async ({ token, nuevaPassword }): Promise<void> => {
-      const claims = tokens.verificarTokenReseteo(token);
-      const usuario = await usuarios.findByEmail(normalizarEmail(claims.email));
-
-      if (!usuario || huellaDePassword(usuario.passHash) !== claims.pwd) {
-        throw new AppError('TOKEN_INVALIDO', 'El enlace no es valido o ya fue utilizado.', 400);
-      }
-
+      const usuario = await resolverEnlaceReseteo(token);
       const passHash = await hasher.hash(nuevaPassword);
       await usuarios.updatePassword(usuario.uuid, passHash);
       await sesiones.revocarSesionesDeUsuario(usuario.uuid);

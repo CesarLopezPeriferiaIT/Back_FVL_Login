@@ -50,23 +50,28 @@ const mensajeTokenInvalido = 'El token proporcionado no es valido o ya expiro.';
 
 /**
  * Verifica la firma y la vigencia de un token, y comprueba que su proposito sea el esperado.
+ *
+ * El estado HTTP distingue el uso de credenciales del uso de enlaces de correo: un token de
+ * acceso invalido es un 401 porque el cliente no esta autenticado, mientras que un enlace de
+ * confirmacion o de reseteo invalido es un 400 porque el dato recibido en la peticion no es valido.
  */
 const verificarToken = (
   token: string,
   secret: string,
   opciones: VerifyOptions,
   proposito: PropositoToken,
+  estado: number,
 ): JwtPayload => {
   let payload: string | JwtPayload;
 
   try {
     payload = jwt.verify(token, secret, opciones);
   } catch {
-    throw new AppError('TOKEN_INVALIDO', mensajeTokenInvalido, 401);
+    throw new AppError('TOKEN_INVALIDO', mensajeTokenInvalido, estado);
   }
 
   if (typeof payload === 'string' || payload['purpose'] !== proposito) {
-    throw new AppError('TOKEN_INVALIDO', mensajeTokenInvalido, 401);
+    throw new AppError('TOKEN_INVALIDO', mensajeTokenInvalido, estado);
   }
 
   return payload;
@@ -110,7 +115,7 @@ export const createTokenService = (config: AppConfig): TokenService => {
       ),
 
     verificarTokenAcceso: (token: string): ClaimsAcceso => {
-      const payload = verificarToken(token, config.jwt.accessSecret, opcionesLectura, 'access');
+      const payload = verificarToken(token, config.jwt.accessSecret, opcionesLectura, 'access', 401);
       return {
         sub: exigirTexto(payload['sub']),
         email: exigirTexto(payload['email']),
@@ -131,6 +136,7 @@ export const createTokenService = (config: AppConfig): TokenService => {
         config.jwt.confirmSecret,
         opcionesLectura,
         'email-confirmation',
+        400,
       );
       return { email: exigirTexto(payload['email']) };
     },
@@ -148,6 +154,7 @@ export const createTokenService = (config: AppConfig): TokenService => {
         config.jwt.resetSecret,
         opcionesLectura,
         'password-reset',
+        400,
       );
       return {
         email: exigirTexto(payload['email']),
