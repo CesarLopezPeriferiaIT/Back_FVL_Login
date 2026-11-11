@@ -15,7 +15,7 @@ Subdireccion de Informatica.
 | Guia de consumo de la API             | `docs/api-guide.html`             |
 | Registro de cambios                   | `CHANGELOG.md`                    |
 | Esquema de base de datos              | `db/init/`                        |
-| Configuracion de variables de entorno | `env.example` (plantilla)         |
+| Configuracion de variables de entorno | `.envexample` (plantilla)         |
 
 ## Requisitos
 
@@ -32,7 +32,7 @@ bun install
 
 # Copiar la plantilla de variables de entorno y ajustar los valores.
 # La plantilla se versiona; el archivo .env con valores reales nunca se versiona.
-cp env.example .env
+cp .envexample .env
 
 # Definir en el archivo .env los secretos que el compose exige de forma explicita:
 # JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET, DB_USER y DB_PASSWORD.

@@ -233,7 +233,7 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   - El transporte de correo de consola, que imprime el cuerpo del mensaje con el token de un solo
     uso, solo se admite en el ambiente `dev`. La configuracion falla de forma explicita si se
     intenta usar en `qas` o `prd`.
-  - La plantilla de variables de entorno se versiona como `env.example`. El archivo `.env` con
+  - La plantilla de variables de entorno se versiona como `.envexample`. El archivo `.env` con
     valores reales nunca se versiona. El PDF acepta cualquier nombre de plantilla siempre que cada
     parametro este comentado.
   - El limite de intentos por identificador y por direccion IP se configura por variable de
