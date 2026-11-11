@@ -1,0 +1,39 @@
+# Archivos de entorno con valores reales: jamas se incluyen en la imagen ni en el repositorio.
+.env
+.env.*
+!.env.example
+
+# Secretos, llaves y certificados.
+**/*.key
+**/*.pem
+**/*.pfx
+**/*.p12
+**/*.crt
+**/*.cer
+
+# Volumenes montados en tiempo de ejecucion.
+volumes/
+**/volumes/
+
+# Dependencias instaladas.
+node_modules/
+
+# Artefactos de compilacion y pruebas.
+dist/
+coverage/
+*.tsbuildinfo
+
+# Registros y trazas.
+logs/
+*.log
+npm-debug.log*
+
+# Control de versiones y metadatos del entorno.
+.git/
+.gitignore
+.github/
+.atl/
+odd/
+
+# Documentacion interna de trabajo.
+_lineamientos.txt

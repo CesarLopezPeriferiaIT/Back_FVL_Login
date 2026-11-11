@@ -1,0 +1,224 @@
+# Microservicio de registro e inicio de sesion (login)
+
+Microservicio REST en Express + TypeScript para registro de cuentas, confirmacion de correo e
+inicio de sesion, conforme a los "Lineamientos Desarrollo de Software - Aplicaciones Moviles y
+Web V1.0.7" de la Fundacion Valle del Lili. Persistencia en SQL Server.
+
+## Specs
+
+### S1
+
+> vamos a hacer un microservicio con express siguiendo los lineamientos de desarrollo expuestos en el PDF "E:\trabajo\Villa\lineamientos_desarrollo_aplicaciones_moviles_web_V1_0_7.pdf".
+
+### S2
+
+> En mi máquina use bun para la instalación, pero para las imágenes de docker si use lo que dice el PDF exige.
+
+### S3
+
+> Este microservicio es de registro de cuenta e inicio de sesión nada más.
+
+### S4
+
+> La base de datos va a ser SQL SERVER, con esto en cuenta y con las siguientes tablas cree el microservicio.
+> Tablas:
+>
+> ```
+> Tabla de usuario:
+> uuid
+> Email
+> pass _ hash
+> estado (Char) A activo - I inactivo - C por confirmar(defecto) - D desactivado (intentos errados)
+> fecha creación
+> fecha modificación
+> tyc (bool)
+>
+> Tabla de LogSession:
+> uuid
+> uuid del usuario
+> successful (bool)
+> timestamp del intento
+> ```
+
+### S5
+
+> Pregunteme todo lo que no se pueda deducir o falte la información.
+
+### S6 - Estado inicial de la cuenta (respuesta del usuario)
+
+> Registro deja la cuenta Por confirmar (C)
+
+### S7 - Estrategia de sesion (respuesta del usuario)
+
+> JWT de acceso + refresh rotativo
+
+### S8 - Limite de intentos (respuesta del usuario)
+
+> 10 intentos y desactivación permanente (D)
+
+### S9 - Log de intentos (respuesta del usuario)
+
+> No registrar intentos de usuarios inexistentes
+
+### S10 - Envio de correo (respuesta del usuario)
+
+> SMTP configurable (nodemailer)
+
+### S11 - Token de confirmacion de correo (respuesta del usuario)
+
+> JWT firmado, sin tabla nueva
+
+### S12 - Refresh token (respuesta del usuario)
+
+> en la tabla "LogSession" complete los campos necesarios para lo de JWT
+
+### S13 - API Key institucional (respuesta del usuario)
+
+> Sí, con tabla ApiKey
+
+### S14 - Flujo movil (respuesta del usuario)
+
+> Login propio + refresh
+
+### S15 - CAPTCHA (respuesta del usuario)
+
+> No implementarlo ahora
+
+### S16 - Politica de contrasenas (respuesta del usuario)
+
+> 8-72, letra + número
+
+### S17 - Imagen Docker y gestor de paquetes (respuesta del usuario)
+
+> node:24-alpine + npm ci
+
+### S18 - Algoritmo de hash (respuesta del usuario)
+
+> argon2id (@node-rs/argon2)
+
+### S19 - Esquema de base de datos (respuesta del usuario)
+
+> Creo solo las tablas
+
+### S20 - Endpoints adicionales (respuesta del usuario)
+
+> Confirmar correo, refresh y logout
+> Recuperar y cambiar contraseña
+> Consultar perfil (me)
+> Desbloqueo administrativo
+
+### S21 - Terminos y condiciones (respuesta del usuario)
+
+> Lo de TyC es que la persona acepta los términos y condiciones que debe leer antes de crear un nuevo
+> usuario, si el usuario no aceptó eso aunque de alguna forma haya saltado esa pantalla, llenado el
+> formulario de creación y enviado esa información no envía el correo de confirmación para evitar
+> registros incompletos.
+
+### S22 - Contador de intentos fallidos (respuesta del usuario)
+
+> Contar desde LogSession
+
+### S23 - Desbloqueo de cuentas en estado D (respuesta del usuario)
+
+> de momento solo se puede cambiar por base de datos, deje documentado que esto falta
+
+### S24 - Requisitos del PDF aplicables al backend
+
+Extraidos del PDF V1.0.7 y de obligatorio cumplimiento:
+
+- **1.2 Stack**: TypeScript estricto sin `any`, programacion funcional, SOLID/DRY/KISS/YAGNI,
+  arquitectura modular con separacion de responsabilidades, linter y formatter.
+- **1.2.3 Backend**: Node.js, Dockerizacion obligatoria del backend, documentacion de API
+  obligatoria siguiendo `docs/api-guide.html` con el formato estandar de respuesta
+  `message`, `error`, `code`, `data`.
+- **1.2.4 Base de datos**: SQL Server, con rol de acceso propio para la aplicacion, distinto de la
+  cuenta de administrador, separando permisos de lectura y escritura.
+- **1.2.5 Comunicacion**: APIs RESTful, JSON, rutas en ingles separadas por guiones medios, prefijo
+  `/backend/{ambiente}/v{version}/` con ambientes `dev`, `qas`, `prd`.
+- **1.4 Rendimiento**: tiempos de carga por debajo de 1 segundo en interacciones internas.
+- **1.5.1 Proteccion de datos**: HTTPS/TLS 1.2 o superior; prohibido almacenar credenciales, tokens
+  o informacion sensible en texto plano; configuracion sensible por variables de entorno y nunca en
+  el codigo fuente; los secretos no entran a la imagen Docker y el Dockerfile nunca copia el `.env`;
+  `.dockerignore` excluye como minimo `.env`, `**/*.key`, `**/*.pem`, volumenes, `node_modules`,
+  logs y `.git`; todo `.env`/`.env.example` lleva cada parametro comentado.
+- **1.5.2 Identidad del cliente**: CORS solo con lista explicita de origenes, nunca `*` cuando se
+  aceptan cookies; endpoints protegidos exigen `X-API-Key` en cada cliente; las claves validas
+  viven en la base de datos, no en codigo ni en variables de entorno estaticas; se guarda solo el
+  hash SHA-256 de la clave y en los logs se identifica por sus primeros 8 caracteres.
+- **1.5.5 Cabeceras HTTP de seguridad**: configuradas en Node con `helmet`, montadas antes que
+  cualquier ruta; CSP `default-src 'none'; frame-ancestors 'none'` para API JSON;
+  `X-Content-Type-Options: nosniff`; `X-Frame-Options: deny`; `Referrer-Policy: no-referrer`;
+  `Strict-Transport-Security: max-age=63072000; includeSubDomains`; `Cross-Origin-Opener-Policy:
+same-origin`; `Cross-Origin-Embedder-Policy: require-corp`; `Cross-Origin-Resource-Policy:
+same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
+  `X-Permitted-Cross-Domain-Policies: none`; `Cache-Control: no-store, max-age=0`;
+  `Clear-Site-Data` unicamente en la respuesta de cierre de sesion; eliminar `X-Powered-By` y
+  `Server` con version.
+- **1.5.6 TLS y nginx**: `ssl_protocols TLSv1.2 TLSv1.3`, `server_tokens off`.
+- **1.5.4 Sesiones**: control de sesiones con tiempos de expiracion definidos y restriccion del
+  numero de intentos de autenticacion contra fuerza bruta.
+- **1.6.4 Limites de intentos**: combinar limite por identificador con umbral mas alto para la IP.
+- **1.7 Calidad**: pruebas unitarias obligatorias con cobertura minima del 80 %; Vitest y
+  `supertest` para backend; todo cambio debe ser revisado y aprobado por otro miembro del equipo.
+- **1.8 Versionado y despliegue**: `MAJOR.MINOR.PATCH`; ramas `main` (produccion) y `develop`
+  (integracion); ramas de trabajo `feature/{descripcion}`, `fix/{descripcion}`, `docs/{descripcion}`
+  en kebab-case en ingles; mensaje de commit en ingles, en mayusculas, imperativo y sin punto
+  final, cuerpo en espanol con vinetas `-` sin espacio, el ultimo bullet reporta resultados de
+  validacion y el numero real de pruebas; `CHANGELOG.md` con entradas enlazadas a su tag `v`.
+- **3.5 Configuraciones y cifrado**: cabeceras de seguridad desde el codigo de la aplicacion.
+- **3.7 Software y configuraciones por defecto**: no dejar configuraciones por defecto.
+- **3.8 Protecciones en autenticacion**: contrasenas complejas; CAPTCHA en formularios de login
+  (ver S15, fuera de alcance en esta version y documentado como pendiente).
+- **4.4 Seguridad acceso y trazabilidad**: usuarios de aplicacion preferiblemente autenticados
+  contra LDAP institucional.
+
+## Tasks
+
+| ID  | Specs                                            | Descripcion                                                                                                                                                                                                                            | Ruta   | Commit                                     |
+| --- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------ |
+| T1  | S1, S2, S24                                      | Fundacion del proyecto: repo Git con ramas `main`/`develop`/`feature`, `package.json`, `tsconfig` estricto, ESLint, Prettier, Vitest con cobertura 80 %, `.env.example` documentado, `.gitignore`, `.dockerignore`, `README.md`        | inline | `ADD PROJECT FOUNDATION`                   |
+| T2  | S4, S12, S13, S19, S24                           | Capa de datos: `pool` SQL Server, puertos de repositorio, repositorios `Usuario`/`LogSession`/`ApiKey` y scripts idempotentes `db/init/*.sql`                                                                                          | inline | `ADD DATABASE LAYER AND SCHEMA SCRIPTS`    |
+| T3  | S6, S7, S8, S10, S11, S16, S17, S18, S22         | Dominio: `password-hasher` (argon2id), `token-service` (JWT acceso, confirmacion y reseteo), `api-key-service`, `mail-service`, `auth-service` con estados A/I/C/D y limite de 10 intentos                                             | inline | `ADD DOMAIN SERVICES`                      |
+| T4  | S24                                              | Capa HTTP: `helmet` con las cabeceras del PDF, CORS por lista explicita, rate limiting por identificador e IP, middleware `X-API-Key`, middleware JWT, manejador de errores y presentador de respuesta `message`/`error`/`code`/`data` | inline | `ADD HTTP MIDDLEWARE AND SECURITY HEADERS` |
+| T5  | S3, S6, S7, S8, S9, S11, S16, S20, S21, S22, S23 | Endpoints de autenticacion: `register`, `login`, `confirm-email`, `refresh`, `logout`, `forgot-password`, `reset-password`, `change-password`, `me`                                                                                    | inline | `ADD AUTH ENDPOINTS`                       |
+| T6  | S13, S24                                         | Endpoint publico de registro de instalacion con permisos por tipo de cliente y gestion de `ApiKey`                                                                                                                                     | inline | `ADD INSTALLATION REGISTRATION ENDPOINT`   |
+| T7  | S24                                              | Suite automatizada: unitarias de dominio e integracion HTTP con `supertest`, cobertura minima 80 %                                                                                                                                     | inline | `ADD AUTOMATED TEST SUITE`                 |
+| T8  | S2, S17, S24                                     | Artefactos de despliegue: `Dockerfile` multi-etapa `node:24-alpine` con `npm ci`, `docker-compose.yml` con SQL Server, `nginx` de referencia con TLS, healthcheck                                                                      | inline | `ADD DOCKER DEPLOYMENT ARTIFACTS`          |
+| T9  | S15, S23, S24                                    | Documentacion: `docs/api-guide.html`, `CHANGELOG.md`, guia de operacion, pendientes (CAPTCHA, desbloqueo administrativo, OAuth PKCE, LDAP)                                                                                             | inline | `ADD API DOCUMENTATION AND CHANGELOG`      |
+
+## Log
+
+- L1 (2026-11-11) - Peticion original del usuario:
+  > vamos a hacer un microservicio con express siguiendo los lineamientos de desarrollo expuestos en el PDF "E:\trabajo\Villa\lineamientos_desarrollo_aplicaciones_moviles_web_V1_0_7.pdf".
+  > En mi máquina use bun para la instalación, pero para las imágenes de docker si use lo que dice el PDF exige.
+  > Este microservicio es de registro de cuenta e inicio de sesión nada más.
+  > La base de datos va a ser SQL SERVER, con esto en cuenta y con las siguientes tablas cree el microservicio.
+  > Tablas:
+  >
+  > ```
+  > Tabla de usuario:
+  > uuid
+  > Email
+  > pass _ hash
+  > estado (Char) A activo - I inactivo - C por confirmar(defecto) - D desactivado (intentos errados)
+  > fecha creación
+  > fecha modificación
+  > tyc (bool)
+  >
+  > Tabla de LogSession:
+  > uuid
+  > uuid del usuario
+  > successful (bool)
+  > timestamp del intento
+  > ```
+  >
+  > Pregunteme todo lo que no se pueda deducir o falte la información.
+- L2 (2026-11-11) - Decisiones tomadas en la fase de aclaracion: S6 a S23. El usuario respondio 18
+  preguntas sobre estado inicial, tokens, limites de intentos, log de intentos, correo, tokens de
+  confirmacion y refresh, API Key, flujo movil, CAPTCHA, politica de contrasenas, imagen Docker,
+  hash, esquema de base de datos, endpoints, terminos y condiciones, contador de intentos y
+  desbloqueo administrativo.
+- L3 (2026-11-11) - Nota de alcance: el desbloqueo administrativo de cuentas en estado D no se
+  implementa como endpoint; se documenta como procedimiento manual sobre la base de datos junto con
+  el script `db/scripts/unlock-user.sql`. CAPTCHA (3.8) y OAuth 2.0 con PKCE (1.6.3) quedan
+  documentados como pendientes.
