@@ -242,3 +242,20 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   orquestador y tres entregados por workers, revisados y corregidos por el orquestador. El cambio
   de estado HTTP de los tokens de enlace lo ajusto el orquestador tras la revision del worker, que
   lo reporto como discrepancia.
+- L6 (2026-11-11) - Evidencia de verificacion:
+  - `bun run typecheck` sin errores y `bun run lint` sin hallazgos.
+  - 96 pruebas automatizadas en verde con Vitest y supertest. Cobertura de 96.62 % de sentencias,
+    86.74 % de ramas, 99.28 % de funciones y 96.84 % de lineas, por encima del minimo del 80 %.
+  - Construccion de la imagen verificada con `docker build` sobre `node:24-alpine`.
+  - Verificacion extremo a extremo contra un SQL Server 2022 real en contenedor: registro de
+    instalacion, registro de cuenta en estado `C`, confirmacion de correo a estado `A`, inicio de
+    sesion con token de acceso y refresh, renovacion con rotacion, consulta del perfil y cierre de
+    sesion con la cabecera `Clear-Site-Data`. Las once cabeceras de seguridad del PDF se
+    comprobaron sobre la respuesta real del servicio.
+  - El esquema se aplico sobre la base real y se verificaron las tres tablas con sus columnas,
+    sus indices de unicidad y la restriccion de estado.
+  - La revision nativa por riderecha se evaluo con tier alto, pero el consentimiento para este
+    candidato quedo denegado en el host y no se creo linaje. La revision es una mirada externa y
+    nunca sustituye la verificacion ni autoriza la entrega.
+  - La construccion de la imagen y el arranque en modo healthcheck quedaron verificados con el
+    demonio de Docker disponible en el equipo de desarrollo.
