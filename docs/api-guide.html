@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guía de consumo de la API de login</title>
+    <style>
+      body {
+        font:
+          16px/1.55 system-ui,
+          sans-serif;
+        color: #17212c;
+        margin: auto;
+        max-width: 78rem;
+        padding: 2rem;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #064e70;
+        line-height: 1.2;
+      }
+      section {
+        margin-block: 2rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-block: 1rem;
+      }
+      caption {
+        text-align: left;
+        font-weight: bold;
+      }
+      th,
+      td {
+        border: 1px solid #788892;
+        padding: 0.5rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #e5f1f5;
+      }
+      code,
+      pre {
+        font-family: ui-monospace, monospace;
+      }
+      code {
+        color: #713100;
+        overflow-wrap: anywhere;
+      }
+      pre {
+        background: #eef3f5;
+        border-left: 4px solid #075c7d;
+        overflow: auto;
+        padding: 1rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      pre code {
+        color: #14354a;
+      }
+      @media print {
+        body {
+          max-width: none;
+          padding: 0;
+        }
+        pre {
+          white-space: pre-wrap;
+        }
+        section,
+        table {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Microservicio de login</h1>
+      <p>Fundación Valle del Lili · Guía técnica de consumo · API v1</p>
+      <p>
+        Ambientes: desarrollo (<code>dev</code>), calidad (<code>qas</code>) y producción
+        (<code>prd</code>). El prefijo es <code>/backend/{ambiente}/v{version}/</code>, por ejemplo
+        <code>/backend/dev/v1</code>; depende de <code>APP_ENV</code> y <code>API_VERSION</code>.
+        Las rutas públicas de diagnóstico <code>/</code> y <code>/health</code> no llevan prefijo.
+      </p>
+    </header>
+    <main>
+      <section>
+        <h2>Formato de respuesta</h2>
+        <p>
+          <code>message</code> es el texto legible; <code>error</code> es null en éxito o un objeto
+          con <code>codigo</code> estable y <code>detalles</code>, arreglo de cadenas;
+          <code>code</code> es 0 en éxito o el estado HTTP en error; <code>data</code> contiene el
+          resultado o null.
+        </p>
+        <pre><code>{"message":"Servicio disponible.","error":null,"code":0,"data":{"servicio":"login","version":1,"ambiente":"dev"}}</code></pre>
+        <pre><code>{"message":"Correo o contrasena incorrectos.","error":{"codigo":"CREDENCIALES_INVALIDAS","detalles":[]},"code":401,"data":null}</code></pre>
+      </section>
+      <section>
+        <h2>Autenticación y convenciones</h2>
+        <h3>API Key del cliente</h3>
+        <p>
+          Registre una instalación y envíe su clave en <code>X-API-Key</code> en cada ruta
+          protegida. La clave en texto plano se entrega una sola vez; almacénela de forma segura. La
+          base de datos conserva únicamente su hash SHA-256 y los registros identifican la clave por
+          sus primeros ocho caracteres.
+        </p>
+        <table>
+          <caption>
+            Alcances por cliente
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Alcance</th>
+              <th scope="col">Clientes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>auth:register</code>, <code>auth:login</code>,
+                <code>auth:confirm-email</code>, <code>auth:refresh</code>,
+                <code>auth:logout</code>, <code>auth:password-reset</code>
+              </td>
+              <td>mobile, web-bff</td>
+            </tr>
+            <tr>
+              <td><code>auth:me</code></td>
+              <td>mobile, web-bff, web</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Token de acceso del usuario</h3>
+        <p>
+          Envíe <code>Authorization: Bearer &lt;token&gt;</code> cuando se indique. La vigencia
+          predeterminada del acceso es 15 minutos y la del refresh token es 30 días, ambas
+          configurables. El refresh se almacena hasheado y rota al renovarse: el anterior queda
+          invalidado y se extiende la vigencia. Proteja ambos tokens.
+        </p>
+        <p>
+          Las peticiones con cuerpo y las respuestas usan JSON. Las rutas están en inglés y emplean
+          guiones medios; las fechas son UTC en ISO 8601 y los identificadores son UUID. Los
+          ejemplos usan el prefijo de desarrollo. Use HTTPS en los ambientes desplegados.
+        </p>
+        <p>
+          Las rutas protegidas pueden responder con <code>API_KEY_REQUERIDA</code>,
+          <code>API_KEY_INVALIDA</code>, <code>API_KEY_REVOCADA</code> o
+          <code>API_KEY_SIN_PERMISO</code>; las que exigen Bearer también con
+          <code>TOKEN_REQUERIDO</code> o <code>TOKEN_INVALIDO</code>. Cualquier ruta puede responder
+          <code>ERROR_INTERNO</code>. Estos errores comunes se aplican además de los indicados por
+          operación.
+        </p>
+      </section>
+      <section>
+        <h2>Catálogo de endpoints</h2>
+        <section>
+          <h3>GET /</h3>
+          <p>Pública; sin cabeceras ni cuerpo. Devuelve 200 con datos del servicio.</p>
+          <pre><code>GET / HTTP/1.1
+
+HTTP/1.1 200 OK
+{"message":"Servicio disponible.","error":null,"code":0,"data":{"servicio":"login","version":1,"ambiente":"dev"}}</code></pre>
+          <p>Errores: error interno imprevisto.</p>
+        </section>
+        <section>
+          <h3>GET /health</h3>
+          <p>Pública; sin cabeceras ni cuerpo. Se usa en el healthcheck de Docker.</p>
+          <pre><code>GET /health HTTP/1.1
+
+HTTP/1.1 200 OK
+{"message":"Servicio saludable.","error":null,"code":0,"data":{"estado":"ok","ambiente":"dev","version":1}}</code></pre>
+          <p>Errores: error interno imprevisto.</p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/installations/register</h3>
+          <p>
+            Pública. Cabecera <code>Content-Type: application/json</code>. Cuerpo obligatorio:
+            <code>nombre</code>, cadena de 1 a 128 caracteres; <code>tipo_cliente</code>, cadena
+            <code>mobile</code>, <code>web-bff</code> o <code>web</code>.
+          </p>
+          <pre><code>POST /backend/dev/v1/installations/register HTTP/1.1
+Content-Type: application/json
+
+{"nombre":"Aplicación móvil","tipo_cliente":"mobile"}
+
+HTTP/1.1 201 Created
+{"message":"Instalacion registrada.","error":null,"code":0,"data":{"api_key":"CLAVE_EJEMPLO","tipo_cliente":"mobile","permisos":["auth:register","auth:login","auth:confirm-email","auth:refresh","auth:logout","auth:password-reset","auth:me"],"fecha_creacion":"2026-11-11T12:00:00.000Z"}}</code></pre>
+          <p>Errores: <code>VALIDACION_FALLIDA</code>, <code>ERROR_INTERNO</code>.</p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/register</h3>
+          <p>
+            Alcance <code>auth:register</code>; cabeceras <code>X-API-Key</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio:
+            <code>email</code> cadena de correo válida, <code>password</code> cadena conforme a la
+            política, <code>tyc</code> booleano. Si es false se crea la cuenta sin enviar
+            confirmación; revise también el indicador de envío.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/register HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"email":"usuario@example.org","password":"Ejemplo123","tyc":true}
+
+HTTP/1.1 201 Created
+{"message":"Registro realizado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"C","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:00:00.000Z"},"correo_confirmacion_enviado":true}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>USUARIO_YA_EXISTE</code>,
+            <code>RATE_LIMIT_EXCEDIDO</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/login</h3>
+          <p>
+            Alcance <code>auth:login</code>; cabeceras <code>X-API-Key</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code> y
+            <code>password</code>, cadenas.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/login HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"email":"usuario@example.org","password":"Ejemplo123"}
+
+HTTP/1.1 200 OK
+{"message":"Sesion iniciada.","error":null,"code":0,"data":{"token_acceso":"TOKEN_ACCESO","token_refresh":"TOKEN_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:00:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>,
+            <code>CREDENCIALES_INVALIDAS</code>, <code>CUENTA_POR_CONFIRMAR</code>,
+            <code>CUENTA_INACTIVA</code>, <code>CUENTA_DESACTIVADA</code>,
+            <code>RATE_LIMIT_EXCEDIDO</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/confirm-email</h3>
+          <p>
+            Alcance <code>auth:confirm-email</code>; cabeceras <code>X-API-Key</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>token</code>,
+            cadena no vacía. También acepta
+            <code>GET /backend/dev/v1/auth/confirm-email?token=...</code> con
+            <code>X-API-Key</code> y sin cuerpo; un navegador que abra el enlace del correo debe
+            proporcionar esa cabecera mediante un cliente o intermediario autorizado.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/confirm-email HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"token":"TOKEN_CONFIRMACION"}
+
+HTTP/1.1 200 OK
+{"message":"Correo confirmado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>TOKEN_INVALIDO</code>,
+            <code>USUARIO_NO_ENCONTRADO</code>, <code>CUENTA_YA_CONFIRMADA</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/logout</h3>
+          <p>
+            Alcance <code>auth:logout</code>; cabeceras <code>X-API-Key</code> y
+            <code>Authorization: Bearer TOKEN_ACCESO</code>; sin cuerpo. Es la única respuesta que
+            incluye <code>Clear-Site-Data</code>. Se revoca la sesión para renovaciones; el JWT de
+            acceso se verifica por firma y vigencia, por lo que debe descartarse en el cliente.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/logout HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Authorization: Bearer TOKEN_ACCESO
+
+HTTP/1.1 200 OK
+Clear-Site-Data: "cache","cookies","storage"
+{"message":"Sesion cerrada.","error":null,"code":0,"data":{"mensaje":"Sesion cerrada"}}</code></pre>
+          <p>Errores: los comunes de API Key y Bearer y <code>ERROR_INTERNO</code>.</p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/refresh</h3>
+          <p>
+            Alcance <code>auth:refresh</code>; cabeceras <code>X-API-Key</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio:
+            <code>refresh_token</code>, cadena no vacía.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/refresh HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"refresh_token":"TOKEN_REFRESH"}
+
+HTTP/1.1 200 OK
+{"message":"Sesion renovada.","error":null,"code":0,"data":{"token_acceso":"NUEVO_ACCESO","token_refresh":"NUEVO_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:05:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>SESION_INVALIDA</code>,
+            <code>USUARIO_NO_ENCONTRADO</code>, <code>CUENTA_NO_ACTIVA</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/forgot-password</h3>
+          <p>
+            Alcance <code>auth:password-reset</code>; cabeceras <code>X-API-Key</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code>,
+            cadena de correo válida. Para una solicitud válida responde 200 con mensaje genérico,
+            exista o no la cuenta.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/forgot-password HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"email":"usuario@example.org"}
+
+HTTP/1.1 200 OK
+{"message":"Si la cuenta existe, recibira instrucciones.","error":null,"code":0,"data":null}</code></pre>
+          <p>Errores adicionales: <code>VALIDACION_FALLIDA</code>.</p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/reset-password</h3>
+          <p>
+            Alcance <code>auth:password-reset</code>; cabeceras <code>X-API-Key</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>token</code> y
+            <code>nueva_password</code>, cadenas. Revoca las sesiones del usuario. También acepta
+            <code>GET /backend/dev/v1/auth/reset-password?token=...</code> con
+            <code>X-API-Key</code> y sin cuerpo: valida el enlace sin modificar la contraseña y
+            responde <code>{"email":"usuario@example.org"}</code> en data.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/reset-password HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"token":"TOKEN_RESETEO","nueva_password":"NuevaClave123"}
+
+HTTP/1.1 200 OK
+{"message":"Contrasena actualizada.","error":null,"code":0,"data":null}</code></pre>
+          <p>Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>TOKEN_INVALIDO</code>.</p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/change-password</h3>
+          <p>
+            Alcance <code>auth:password-reset</code>; cabeceras <code>X-API-Key</code>,
+            <code>Authorization: Bearer TOKEN_ACCESO</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio:
+            <code>password_actual</code> y <code>nueva_password</code>, cadenas. Revoca las demás
+            sesiones.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/change-password HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Authorization: Bearer TOKEN_ACCESO
+Content-Type: application/json
+
+{"password_actual":"Ejemplo123","nueva_password":"NuevaClave123"}
+
+HTTP/1.1 200 OK
+{"message":"Contrasena actualizada.","error":null,"code":0,"data":null}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>,
+            <code>CREDENCIALES_INVALIDAS</code>, <code>USUARIO_NO_ENCONTRADO</code>.
+          </p>
+        </section>
+        <section>
+          <h3>GET /backend/dev/v1/auth/me</h3>
+          <p>
+            Alcance <code>auth:me</code>; cabeceras <code>X-API-Key</code> y
+            <code>Authorization: Bearer TOKEN_ACCESO</code>; sin cuerpo.
+          </p>
+          <pre><code>GET /backend/dev/v1/auth/me HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Authorization: Bearer TOKEN_ACCESO
+
+HTTP/1.1 200 OK
+{"message":"Perfil consultado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
+          <p>Errores adicionales: <code>USUARIO_NO_ENCONTRADO</code>.</p>
+        </section>
+      </section>
+      <section>
+        <h2>Contraseñas, estados y seguridad</h2>
+        <p>
+          La contraseña tiene entre 8 y 72 caracteres, al menos una letra ASCII y un dígito y no
+          admite espacios en blanco. Se almacena como hash argon2id, nunca en texto plano.
+        </p>
+        <table>
+          <caption>
+            Estados de cuenta
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Estado</th>
+              <th scope="col">Significado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>A</td>
+              <td>Activa.</td>
+            </tr>
+            <tr>
+              <td>I</td>
+              <td>Inactiva.</td>
+            </tr>
+            <tr>
+              <td>C</td>
+              <td>Por confirmar; predeterminado al registrarse.</td>
+            </tr>
+            <tr>
+              <td>D</td>
+              <td>
+                Desactivada por diez intentos fallidos consecutivos. Un operador autorizado debe
+                desbloquearla manualmente en la base de datos mediante
+                <code>db/scripts/unlock-user.sql</code>; el procedimiento también reinicia el
+                contador de intentos fallidos.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          El inicio de sesión limita solicitudes por correo e IP, con un umbral predeterminado mayor
+          para IP; el registro también limita por IP. Al superarlo se responde 429 con
+          <code>RATE_LIMIT_EXCEDIDO</code>. CORS utiliza una lista explícita de orígenes. La
+          aplicación configura Helmet, CSP restrictiva, HSTS, protección contra marcos y MIME,
+          políticas de referencia y recursos, y <code>Cache-Control: no-store</code>. Las duraciones
+          predeterminadas son 15 minutos para acceso y 30 días para refresh.
+        </p>
+      </section>
+      <section>
+        <h2>Códigos de error</h2>
+        <table>
+          <caption>
+            Errores emitidos por el servicio
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Código</th>
+              <th scope="col">HTTP</th>
+              <th scope="col">Significado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>VALIDACION_FALLIDA</td>
+              <td>400</td>
+              <td>Entrada inválida.</td>
+            </tr>
+            <tr>
+              <td>USUARIO_YA_EXISTE</td>
+              <td>409</td>
+              <td>Correo registrado.</td>
+            </tr>
+            <tr>
+              <td>CREDENCIALES_INVALIDAS</td>
+              <td>401</td>
+              <td>Credenciales incorrectas.</td>
+            </tr>
+            <tr>
+              <td>CUENTA_POR_CONFIRMAR</td>
+              <td>403</td>
+              <td>Correo pendiente de confirmación.</td>
+            </tr>
+            <tr>
+              <td>CUENTA_INACTIVA</td>
+              <td>403</td>
+              <td>Cuenta inactiva.</td>
+            </tr>
+            <tr>
+              <td>CUENTA_DESACTIVADA</td>
+              <td>403</td>
+              <td>Cuenta bloqueada por intentos.</td>
+            </tr>
+            <tr>
+              <td>CUENTA_NO_ACTIVA</td>
+              <td>403</td>
+              <td>Cuenta no activa al renovar.</td>
+            </tr>
+            <tr>
+              <td>CUENTA_YA_CONFIRMADA</td>
+              <td>409</td>
+              <td>Cuenta que ya no está pendiente de confirmación.</td>
+            </tr>
+            <tr>
+              <td>TOKEN_INVALIDO</td>
+              <td>400 o 401</td>
+              <td>Token inválido, vencido o enlace ya utilizado.</td>
+            </tr>
+            <tr>
+              <td>TOKEN_REQUERIDO</td>
+              <td>401</td>
+              <td>Falta el Bearer.</td>
+            </tr>
+            <tr>
+              <td>SESION_INVALIDA</td>
+              <td>401</td>
+              <td>Refresh inválido, revocado o vencido.</td>
+            </tr>
+            <tr>
+              <td>API_KEY_REQUERIDA</td>
+              <td>401</td>
+              <td>Falta la clave de cliente.</td>
+            </tr>
+            <tr>
+              <td>API_KEY_INVALIDA</td>
+              <td>401</td>
+              <td>Clave desconocida.</td>
+            </tr>
+            <tr>
+              <td>API_KEY_REVOCADA</td>
+              <td>401</td>
+              <td>Clave revocada.</td>
+            </tr>
+            <tr>
+              <td>API_KEY_SIN_PERMISO</td>
+              <td>403</td>
+              <td>Falta el alcance.</td>
+            </tr>
+            <tr>
+              <td>RATE_LIMIT_EXCEDIDO</td>
+              <td>429</td>
+              <td>Se excedió el límite de solicitudes.</td>
+            </tr>
+            <tr>
+              <td>USUARIO_NO_ENCONTRADO</td>
+              <td>404</td>
+              <td>No existe la cuenta asociada.</td>
+            </tr>
+            <tr>
+              <td>ERROR_INTERNO</td>
+              <td>500</td>
+              <td>Error inesperado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Variables de entorno</h2>
+        <p>
+          Consulte <code>env.example</code> para la plantilla completa. Configure secretos mediante
+          un mecanismo seguro; no los incluya en clientes ni imágenes. Fuera de desarrollo se
+          requiere SMTP.
+        </p>
+        <table>
+          <caption>
+            Configuración de operación
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Variable</th>
+              <th scope="col">Uso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>APP_ENV, API_VERSION, PORT, PUBLIC_BASE_URL, TYC_VERSION</td>
+              <td>
+                Ambiente, versión de ruta, puerto, URL pública para enlaces y versión de términos.
+              </td>
+            </tr>
+            <tr>
+              <td>JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET</td>
+              <td>Secretos independientes de firma, mínimo 32 caracteres.</td>
+            </tr>
+            <tr>
+              <td>JWT_ACCESS_TTL, JWT_CONFIRM_TTL, JWT_RESET_TTL</td>
+              <td>Vigencia de acceso, confirmación y reseteo; ejemplos: 15m, 24h, 30m.</td>
+            </tr>
+            <tr>
+              <td>JWT_ISSUER, JWT_AUDIENCE, REFRESH_TOKEN_TTL_DAYS</td>
+              <td>Emisor, audiencia y vigencia del refresh en días.</td>
+            </tr>
+            <tr>
+              <td>DB_SERVER, DB_PORT, DB_DATABASE, DB_USER, DB_PASSWORD</td>
+              <td>Conexión SQL Server; utilice usuario propio de aplicación.</td>
+            </tr>
+            <tr>
+              <td>DB_ENCRYPT, DB_TRUST_SERVER_CERTIFICATE, DB_POOL_MAX, DB_POOL_CONNECT_TIMEOUT</td>
+              <td>TLS, confianza del certificado y límites del pool.</td>
+            </tr>
+            <tr>
+              <td>CORS_ALLOWED_ORIGINS, TRUSTED_PROXY_CIDRS</td>
+              <td>Listas separadas por comas de orígenes y redes de proxies confiables.</td>
+            </tr>
+            <tr>
+              <td>
+                RATE_LIMIT_LOGIN_PER_IDENTIFIER, RATE_LIMIT_LOGIN_PER_IP, RATE_LIMIT_WINDOW_MINUTES,
+                RATE_LIMIT_REGISTER_PER_IP
+              </td>
+              <td>Umbrales de login y registro y ventana en minutos.</td>
+            </tr>
+            <tr>
+              <td>
+                SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, MAIL_FROM,
+                MAIL_TRANSPORT
+              </td>
+              <td>
+                Transporte, servidor, autenticación y remitente de correo. Console es solo para
+                desarrollo y expone enlaces en el registro.
+              </td>
+            </tr>
+            <tr>
+              <td>LOG_LEVEL</td>
+              <td>Nivel de registro: debug, info, warn o error.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Ciclo completo con curl</h2>
+        <p>
+          Sustituya los marcadores por valores reales obtenidos de las respuestas y del correo. No
+          publique claves ni tokens. Use una URL HTTPS fuera de desarrollo.
+        </p>
+        <pre><code>BASE=http://localhost:3000/backend/dev/v1
+curl -X POST "$BASE/installations/register" -H 'Content-Type: application/json' -d '{"nombre":"Cliente móvil","tipo_cliente":"mobile"}'
+# Copie data.api_key en API_KEY en un entorno seguro.
+curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123","tyc":true}'
+# Obtenga el token del enlace recibido por correo.
+curl -X POST "$BASE/auth/confirm-email" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN_CONFIRMACION\"}"
+curl -X POST "$BASE/auth/login" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123"}'
+# Copie data.token_refresh en REFRESH; sustituya el anterior por el nuevo tras renovar.
+curl -X POST "$BASE/auth/refresh" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$REFRESH\"}"</code></pre>
+      </section>
+    </main>
+  </body>
+</html>
