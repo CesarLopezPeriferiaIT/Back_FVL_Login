@@ -41,6 +41,8 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      // Los dobles en memoria resuelven de forma sincrona pero deben cumplir el contrato asincrono.
+      '@typescript-eslint/require-await': 'off',
     },
   },
   prettier,
