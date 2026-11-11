@@ -352,7 +352,7 @@ HTTP/1.1 200 OK
 {"message":"Contrasena actualizada.","error":null,"code":0,"data":null}</code></pre>
           <p>
             Errores adicionales: <code>VALIDACION_FALLIDA</code>,
-            <code>CREDENCIALES_INVALIDAS</code>, <code>USUARIO_NO_ENCONTRADO</code>.
+            <code>PASSWORD_ACTUAL_INVALIDA</code>, <code>USUARIO_NO_ENCONTRADO</code>.
           </p>
         </section>
         <section>
@@ -447,6 +447,14 @@ HTTP/1.1 200 OK
               <td>CREDENCIALES_INVALIDAS</td>
               <td>401</td>
               <td>Credenciales incorrectas.</td>
+            </tr>
+            <tr>
+              <td>PASSWORD_ACTUAL_INVALIDA</td>
+              <td>400</td>
+              <td>
+                La contrasena actual no es correcta en el cambio de contrasena. El usuario ya esta
+                autenticado, por lo que se trata de un dato invalido del formulario.
+              </td>
             </tr>
             <tr>
               <td>CUENTA_POR_CONFIRMAR</td>

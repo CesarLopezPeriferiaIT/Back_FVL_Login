@@ -355,7 +355,9 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
       const coincide = await hasher.verify(usuario.passHash, passwordActual);
 
       if (!coincide) {
-        throw new AppError('CREDENCIALES_INVALIDAS', 'La contrasena actual no es correcta.', 401);
+        // El usuario ya esta autenticado con su token de acceso: la contrasena actual es un dato
+        // del formulario y su error es de validacion, no de autenticacion.
+        throw new AppError('PASSWORD_ACTUAL_INVALIDA', 'La contrasena actual no es correcta.', 400);
       }
 
       const passHash = await hasher.hash(nuevaPassword);
