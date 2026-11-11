@@ -174,17 +174,17 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
 
 ## Tasks
 
-| ID  | Specs                                            | Descripcion                                                                                                                                                                                                                            | Ruta   | Commit                                     |
-| --- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------ |
-| T1  | S1, S2, S24                                      | Fundacion del proyecto: repo Git con ramas `main`/`develop`/`feature`, `package.json`, `tsconfig` estricto, ESLint, Prettier, Vitest con cobertura 80 %, `.env.example` documentado, `.gitignore`, `.dockerignore`, `README.md`        | inline | `ADD PROJECT FOUNDATION`                   |
-| T2  | S4, S12, S13, S19, S24                           | Capa de datos: `pool` SQL Server, puertos de repositorio, repositorios `Usuario`/`LogSession`/`ApiKey` y scripts idempotentes `db/init/*.sql`                                                                                          | inline | `ADD DATABASE LAYER AND SCHEMA SCRIPTS`    |
-| T3  | S6, S7, S8, S10, S11, S16, S17, S18, S22         | Dominio: `password-hasher` (argon2id), `token-service` (JWT acceso, confirmacion y reseteo), `api-key-service`, `mail-service`, `auth-service` con estados A/I/C/D y limite de 10 intentos                                             | inline | `ADD DOMAIN SERVICES`                      |
-| T4  | S24                                              | Capa HTTP: `helmet` con las cabeceras del PDF, CORS por lista explicita, rate limiting por identificador e IP, middleware `X-API-Key`, middleware JWT, manejador de errores y presentador de respuesta `message`/`error`/`code`/`data` | inline | `ADD HTTP MIDDLEWARE AND SECURITY HEADERS` |
-| T5  | S3, S6, S7, S8, S9, S11, S16, S20, S21, S22, S23 | Endpoints de autenticacion: `register`, `login`, `confirm-email`, `refresh`, `logout`, `forgot-password`, `reset-password`, `change-password`, `me`                                                                                    | inline | `ADD AUTH ENDPOINTS`                       |
-| T6  | S13, S24                                         | Endpoint publico de registro de instalacion con permisos por tipo de cliente y gestion de `ApiKey`                                                                                                                                     | inline | `ADD INSTALLATION REGISTRATION ENDPOINT`   |
-| T7  | S24                                              | Suite automatizada: unitarias de dominio e integracion HTTP con `supertest`, cobertura minima 80 %                                                                                                                                     | inline | `ADD AUTOMATED TEST SUITE`                 |
-| T8  | S2, S17, S24                                     | Artefactos de despliegue: `Dockerfile` multi-etapa `node:24-alpine` con `npm ci`, `docker-compose.yml` con SQL Server, `nginx` de referencia con TLS, healthcheck                                                                      | inline | `ADD DOCKER DEPLOYMENT ARTIFACTS`          |
-| T9  | S15, S23, S24                                    | Documentacion: `docs/api-guide.html`, `CHANGELOG.md`, guia de operacion, pendientes (CAPTCHA, desbloqueo administrativo, OAuth PKCE, LDAP)                                                                                             | inline | `ADD API DOCUMENTATION AND CHANGELOG`      |
+| ID  | Specs                                            | Descripcion                                                                                                                                                                                                                            | Ruta   | Commit                                             |
+| --- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------- |
+| T1  | S1, S2, S24                                      | Fundacion del proyecto: repo Git con ramas `main`/`develop`/`feature`, `package.json`, `tsconfig` estricto, ESLint, Prettier, Vitest con cobertura 80 %, `.env.example` documentado, `.gitignore`, `.dockerignore`, `README.md`        | inline | `6415957 ADD PROJECT FOUNDATION`                   |
+| T2  | S4, S12, S13, S19, S24                           | Capa de datos: `pool` SQL Server, puertos de repositorio, repositorios `Usuario`/`LogSession`/`ApiKey` y scripts idempotentes `db/init/*.sql`                                                                                          | inline | `f89cf23 ADD DATABASE LAYER AND SCHEMA SCRIPTS`    |
+| T3  | S6, S7, S8, S10, S11, S16, S17, S18, S22         | Dominio: `password-hasher` (argon2id), `token-service` (JWT acceso, confirmacion y reseteo), `api-key-service`, `mail-service`, `auth-service` con estados A/I/C/D y limite de 10 intentos                                             | inline | `1f045fe ADD DOMAIN SERVICES`                      |
+| T4  | S24                                              | Capa HTTP: `helmet` con las cabeceras del PDF, CORS por lista explicita, rate limiting por identificador e IP, middleware `X-API-Key`, middleware JWT, manejador de errores y presentador de respuesta `message`/`error`/`code`/`data` | worker | `02292a9 ADD HTTP MIDDLEWARE AND SECURITY HEADERS` |
+| T5  | S3, S6, S7, S8, S9, S11, S16, S20, S21, S22, S23 | Endpoints de autenticacion: `register`, `login`, `confirm-email`, `refresh`, `logout`, `forgot-password`, `reset-password`, `change-password`, `me`                                                                                    | worker | `768e109 ADD AUTH ENDPOINTS`                       |
+| T6  | S13, S24                                         | Endpoint publico de registro de instalacion con permisos por tipo de cliente y gestion de `ApiKey`                                                                                                                                     | worker | `768e109 ADD AUTH ENDPOINTS`                       |
+| T7  | S24                                              | Suite automatizada: unitarias de dominio e integracion HTTP con `supertest`, cobertura minima 80 %                                                                                                                                     | inline | `f4f8c2a ADD DOMAIN TEST SUITE`                    |
+| T8  | S2, S17, S24                                     | Artefactos de despliegue: `Dockerfile` multi-etapa `node:24-alpine` con `npm ci`, `docker-compose.yml` con SQL Server, `nginx` de referencia con TLS, healthcheck                                                                      | worker | `462e177 ADD DOCKER DEPLOYMENT ARTIFACTS`          |
+| T9  | S15, S23, S24                                    | Documentacion: `docs/api-guide.html`, `CHANGELOG.md`, guia de operacion, pendientes (CAPTCHA, desbloqueo administrativo, OAuth PKCE, LDAP)                                                                                             | inline | `pendiente`                                        |
 
 ## Log
 
@@ -222,3 +222,23 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   implementa como endpoint; se documenta como procedimiento manual sobre la base de datos junto con
   el script `db/scripts/unlock-user.sql`. CAPTCHA (3.8) y OAuth 2.0 con PKCE (1.6.3) quedan
   documentados como pendientes.
+- L4 (2026-11-11) - Decisiones tomadas durante la implementacion, con el fin de cerrar huecos del
+  contrato que el PDF no resuelve:
+  - El enlace de reseteo de contrasena lleva dentro una huella de la contrasena vigente. Asi el
+    enlace es de un solo uso sin necesidad de una tabla adicional de tokens consumidos, y el
+    endpoint `GET /auth/reset-password` puede distinguir un enlace ya utilizado de uno vigente.
+  - Un enlace de correo invalido, expirado o ya usado responde 400, porque el dato recibido en la
+    peticion no es valido. Un token de acceso invalido responde 401, porque el cliente no esta
+    autenticado.
+  - El transporte de correo de consola, que imprime el cuerpo del mensaje con el token de un solo
+    uso, solo se admite en el ambiente `dev`. La configuracion falla de forma explicita si se
+    intenta usar en `qas` o `prd`.
+  - La plantilla de variables de entorno se versiona como `env.example`. El archivo `.env` con
+    valores reales nunca se versiona. El PDF acepta cualquier nombre de plantilla siempre que cada
+    parametro este comentado.
+  - El limite de intentos por identificador y por direccion IP se configura por variable de
+    entorno, con umbral mayor para la IP, conforme a la recomendacion 1.6.4.
+- L5 (2026-11-11) - Estado al cierre de la implementacion: cuatro work units committeados por el
+  orquestador y tres entregados por workers, revisados y corregidos por el orquestador. El cambio
+  de estado HTTP de los tokens de enlace lo ajusto el orquestador tras la revision del worker, que
+  lo reporto como discrepancia.

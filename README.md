@@ -34,6 +34,9 @@ bun install
 # La plantilla se versiona; el archivo .env con valores reales nunca se versiona.
 cp env.example .env
 
+# Definir en el archivo .env los secretos que el compose exige de forma explicita:
+# JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET, DB_USER y DB_PASSWORD.
+
 # Levantar SQL Server y el servicio.
 docker compose up -d
 

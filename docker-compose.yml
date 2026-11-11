@@ -37,6 +37,13 @@ services:
       MAIL_TRANSPORT: console
       LOG_LEVEL: info
       TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"
+      # Los secretos no tienen valor por defecto: compose los toma del archivo .env de la raiz del
+      # proyecto y falla de forma explicita si no estan definidos. El .env nunca se versiona.
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET en el archivo .env}
+      JWT_CONFIRM_SECRET: ${JWT_CONFIRM_SECRET:?defina JWT_CONFIRM_SECRET en el archivo .env}
+      JWT_RESET_SECRET: ${JWT_RESET_SECRET:?defina JWT_RESET_SECRET en el archivo .env}
+      DB_USER: ${DB_USER:?defina DB_USER en el archivo .env}
+      DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD en el archivo .env}
     ports:
       - "3000:3000"
     healthcheck:

@@ -115,7 +115,13 @@ export const createTokenService = (config: AppConfig): TokenService => {
       ),
 
     verificarTokenAcceso: (token: string): ClaimsAcceso => {
-      const payload = verificarToken(token, config.jwt.accessSecret, opcionesLectura, 'access', 401);
+      const payload = verificarToken(
+        token,
+        config.jwt.accessSecret,
+        opcionesLectura,
+        'access',
+        401,
+      );
       return {
         sub: exigirTexto(payload['sub']),
         email: exigirTexto(payload['email']),
