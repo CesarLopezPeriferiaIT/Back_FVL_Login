@@ -152,7 +152,7 @@ describe('confirmacion de correo', () => {
 
     await expect(authService.confirmarCorreo('token-invalido')).rejects.toMatchObject({
       codigo: 'TOKEN_INVALIDO',
-      status: 401,
+      status: 400,
     });
   });
 
@@ -387,7 +387,7 @@ describe('reseteo de contrasena', () => {
 
     await expect(
       authService.resetearContrasena({ token: 'enlace-invalido', nuevaPassword: PASSWORD_NUEVA }),
-    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO', status: 401 });
+    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO', status: 400 });
   });
 });
 
@@ -406,7 +406,7 @@ describe('cambio de contrasena con sesion activa', () => {
         passwordActual: 'ClaveIncorrecta1',
         nuevaPassword: PASSWORD_NUEVA,
       }),
-    ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS', status: 401 });
+    ).rejects.toMatchObject({ codigo: 'PASSWORD_ACTUAL_INVALIDA', status: 400 });
   });
 
   it('revoca las demas sesiones del usuario', async () => {
