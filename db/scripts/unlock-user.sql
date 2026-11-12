@@ -10,6 +10,11 @@
 
 SET NOCOUNT ON;
 
+-- QUOTED_IDENTIFIER y ANSI_NULLS se activan de forma explicita porque sqlcmd los deja
+-- desactivados y la tabla log_session tiene un indice filtrado que los exige en ON.
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
 -- Correo electronico de la cuenta a desbloquear.
 DECLARE @correo NVARCHAR(256) = 'usuario@ejemplo.co';
 
@@ -23,7 +28,7 @@ DECLARE @estado_destino CHAR(1) = 'A';
 BEGIN TRANSACTION;
 
 -- 1. Devuelve la cuenta al estado destino solo si estaba efectivamente desactivada.
-UPDATE dbo.Usuario
+UPDATE dbo.usuario
 SET estado = @estado_destino,
     fecha_modificacion = SYSUTCDATETIME()
 WHERE Email = @correo
@@ -32,9 +37,9 @@ WHERE Email = @correo
 -- 2. Elimina los intentos fallidos posteriores al ultimo acceso exitoso. El contador de intentos
 -- se deriva de estas filas, por lo que borrarlas reinicia el conteo y evita que la cuenta se
 -- desactive de nuevo en el siguiente intento fallido.
-DELETE FROM dbo.LogSession
+DELETE FROM dbo.log_session
 WHERE successful = 0
-  AND uuid_usuario = (SELECT uuid FROM dbo.Usuario WHERE Email = @correo);
+  AND uuid_usuario = (SELECT uuid FROM dbo.usuario WHERE Email = @correo);
 
 COMMIT TRANSACTION;
 
@@ -45,5 +50,5 @@ SELECT uuid,
        tyc,
        fecha_creacion,
        fecha_modificacion
-FROM dbo.Usuario
+FROM dbo.usuario
 WHERE Email = @correo;

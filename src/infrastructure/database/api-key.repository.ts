@@ -28,7 +28,7 @@ interface ApiKeyRow {
 const SELECT_API_KEY = `
   SELECT uuid, key_hash, nombre, tipo_cliente, permisos, revocado,
          fecha_creacion, fecha_modificacion, ultimo_uso
-  FROM dbo.ApiKey`;
+  FROM dbo.api_key`;
 
 const PERMISOS_VALIDOS: readonly Permiso[] = [
   'auth:register',
@@ -83,7 +83,7 @@ export const createApiKeyRepository = (pool: Database): ApiKeyRepository => ({
       .input('tipoCliente', sql.Char(8), nuevaApiKey.tipoCliente)
       .input('permisos', sql.NVarChar(512), nuevaApiKey.permisos.join(','))
       .query<IRecordSet<ApiKeyRow>>(
-        `INSERT INTO dbo.ApiKey
+        `INSERT INTO dbo.api_key
            (uuid, key_hash, nombre, tipo_cliente, permisos, revocado, fecha_creacion, fecha_modificacion)
          OUTPUT INSERTED.uuid, INSERTED.key_hash, INSERTED.nombre, INSERTED.tipo_cliente,
                 INSERTED.permisos, INSERTED.revocado, INSERTED.fecha_creacion,
@@ -104,7 +104,7 @@ export const createApiKeyRepository = (pool: Database): ApiKeyRepository => ({
       .request()
       .input('uuid', sql.UniqueIdentifier, uuid)
       .query(
-        `UPDATE dbo.ApiKey
+        `UPDATE dbo.api_key
          SET ultimo_uso = SYSUTCDATETIME()
          WHERE uuid = @uuid`,
       );

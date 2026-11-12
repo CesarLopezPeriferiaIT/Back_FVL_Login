@@ -331,3 +331,20 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
     archivo, de modo que el esquema se aplica igual con sqlcmd que desde la aplicacion.
   - Verificado sobre un SQL Server real: base creada desde cero, tres tablas y tres indices unicos
     creados, reaplicacion sin duplicados y segunda ejecucion de db:init sin recrear la base.
+- L13 (2026-11-11) - Alineacion del esquema y el codigo tras el renombrado de las tablas a
+  snake_case, a solicitud del usuario:
+  - Los nombres de tabla quedan en `usuario`, `log_session` y `api_key`, en el archivo de esquema
+    y en las 25 referencias de los tres repositorios, el script de desbloqueo manual y las pruebas
+    de repositorio. Los identificadores del dominio en TypeScript conservan su convencion propia.
+  - La intercalacion de la base es insensible a mayusculas, asi que el cambio de `Usuario` a
+    `usuario` no altera el objeto; en cambio el guion bajo si distingue, y por eso las consultas
+    de `log_session` y `api_key` debian actualizarse.
+  - Al verificar el script de desbloqueo con sqlcmd se detecto el mismo defecto de
+    QUOTED_IDENTIFIER que ya se habia corregido en el archivo de esquema: sqlcmd lo deja
+    desactivado y la tabla `log_session` tiene un indice filtrado que lo exige en ON. El script de
+    desbloqueo ahora activa tambien QUOTED_IDENTIFIER y ANSI_NULLS de forma explicita.
+  - Verificado con una instalacion limpia sobre SQL Server real: base creada desde cero, las tres
+    tablas con los nombres nuevos, y el ciclo completo de la API funcionando sobre ella
+    (registro de instalacion, registro, confirmacion, login, perfil, renovacion y cierre). Tambien
+    se verifico el desbloqueo manual: la cuenta paso de D a A y el contador de intentos quedo en
+    cero, con el login restored.

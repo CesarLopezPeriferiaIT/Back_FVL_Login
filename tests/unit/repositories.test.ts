@@ -97,9 +97,9 @@ describe('parametrizacion de las consultas', () => {
     expect(await repo.findByUuid(valor)).toBeNull();
     await repo.updateEstado(valor, 'D');
     await repo.updatePassword(valor, 'hash-de-prueba');
-    comprobarConsulta(consultas[0], 'dbo.Usuario', 'WHERE Email = @email', 'email', valor);
+    comprobarConsulta(consultas[0], 'dbo.usuario', 'WHERE Email = @email', 'email', valor);
     for (const consulta of consultas.slice(1)) {
-      comprobarConsulta(consulta, 'dbo.Usuario', 'WHERE uuid = @uuid', 'uuid', valor);
+      comprobarConsulta(consulta, 'dbo.usuario', 'WHERE uuid = @uuid', 'uuid', valor);
     }
     expect(consultas[2]?.parametros.estado).toBe('D');
     expect(consultas[3]?.parametros.passHash).toBe('hash-de-prueba');
@@ -116,14 +116,14 @@ describe('parametrizacion de las consultas', () => {
     await repo.revocarSesionesDeUsuario(valor, 'sesion-excluida');
     expect(await repo.contarIntentosFallidosDesdeUltimoExito(valor)).toBe(0);
     expect(await repo.buscarSesionPorHash(valor)).toBeNull();
-    comprobarConsulta(consultas[0], 'dbo.LogSession', '@uuidUsuario', 'uuidUsuario', valor);
+    comprobarConsulta(consultas[0], 'dbo.log_session', '@uuidUsuario', 'uuidUsuario', valor);
     for (const consulta of consultas.slice(1, 3)) {
-      comprobarConsulta(consulta, 'dbo.LogSession', 'WHERE uuid = @uuid', 'uuid', valor);
+      comprobarConsulta(consulta, 'dbo.log_session', 'WHERE uuid = @uuid', 'uuid', valor);
     }
     for (const consulta of consultas.slice(3, 6)) {
       comprobarConsulta(
         consulta,
-        'dbo.LogSession',
+        'dbo.log_session',
         'uuid_usuario = @uuidUsuario',
         'uuidUsuario',
         valor,
@@ -137,7 +137,7 @@ describe('parametrizacion de las consultas', () => {
     expect(consultas[5]?.sql).toContain('timestamp_intento > COALESCE');
     comprobarConsulta(
       consultas[6],
-      'dbo.LogSession',
+      'dbo.log_session',
       'WHERE refresh_token_hash = @refreshTokenHash',
       'refreshTokenHash',
       valor,
@@ -150,8 +150,8 @@ describe('parametrizacion de las consultas', () => {
     const valor = "valor-inyectado' OR 1=1";
     expect(await repo.findByHash(valor)).toBeNull();
     await repo.registrarUso(valor);
-    comprobarConsulta(consultas[0], 'dbo.ApiKey', 'WHERE key_hash = @keyHash', 'keyHash', valor);
-    comprobarConsulta(consultas[1], 'dbo.ApiKey', 'WHERE uuid = @uuid', 'uuid', valor);
+    comprobarConsulta(consultas[0], 'dbo.api_key', 'WHERE key_hash = @keyHash', 'keyHash', valor);
+    comprobarConsulta(consultas[1], 'dbo.api_key', 'WHERE uuid = @uuid', 'uuid', valor);
   });
 });
 
@@ -183,7 +183,7 @@ describe('mapeo de las filas devueltas', () => {
     });
 
     expect(creado.uuid).toBe('uuid-usuario');
-    expect(consultas[0]?.sql).toContain('INSERT INTO dbo.Usuario');
+    expect(consultas[0]?.sql).toContain('INSERT INTO dbo.usuario');
     expect(consultas[0]?.parametros.estado).toBe('C');
 
     await expect(

@@ -22,7 +22,7 @@ interface UsuarioRow {
 
 const SELECT_USUARIO = `
   SELECT uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc
-  FROM dbo.Usuario`;
+  FROM dbo.usuario`;
 
 const toUsuario = (row: UsuarioRow): Usuario => ({
   uuid: row.uuid,
@@ -67,7 +67,7 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
       .input('estado', sql.Char(1), nuevoUsuario.estado)
       .input('tyc', sql.Bit, nuevoUsuario.tyc)
       .query<IRecordSet<UsuarioRow>>(
-        `INSERT INTO dbo.Usuario (uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc)
+        `INSERT INTO dbo.usuario (uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc)
          OUTPUT INSERTED.uuid, INSERTED.Email, INSERTED.pass_hash, INSERTED.estado,
                 INSERTED.fecha_creacion, INSERTED.fecha_modificacion, INSERTED.tyc
          VALUES (@uuid, @email, @passHash, @estado, SYSUTCDATETIME(), SYSUTCDATETIME(), @tyc)`,
@@ -86,7 +86,7 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
       .input('uuid', sql.UniqueIdentifier, uuid)
       .input('estado', sql.Char(1), estado)
       .query(
-        `UPDATE dbo.Usuario
+        `UPDATE dbo.usuario
          SET estado = @estado, fecha_modificacion = SYSUTCDATETIME()
          WHERE uuid = @uuid`,
       );
@@ -98,7 +98,7 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
       .input('uuid', sql.UniqueIdentifier, uuid)
       .input('passHash', sql.NVarChar(512), passHash)
       .query(
-        `UPDATE dbo.Usuario
+        `UPDATE dbo.usuario
          SET pass_hash = @passHash, fecha_modificacion = SYSUTCDATETIME()
          WHERE uuid = @uuid`,
       );

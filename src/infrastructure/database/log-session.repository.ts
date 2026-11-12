@@ -28,7 +28,7 @@ interface LogSessionRow {
 const SELECT_LOG_SESSION = `
   SELECT uuid, uuid_usuario, successful, timestamp_intento,
          refresh_token_hash, refresh_expires_at, revoked_at, rotado_en
-  FROM dbo.LogSession`;
+  FROM dbo.log_session`;
 
 const toLogSession = (row: LogSessionRow): LogSession => ({
   uuid: row.uuid,
@@ -51,7 +51,7 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       .input('uuid', sql.UniqueIdentifier, randomUUID())
       .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
       .query(
-        `INSERT INTO dbo.LogSession (uuid, uuid_usuario, successful, timestamp_intento)
+        `INSERT INTO dbo.log_session (uuid, uuid_usuario, successful, timestamp_intento)
          VALUES (@uuid, @uuidUsuario, 0, SYSUTCDATETIME())`,
       );
   },
@@ -69,7 +69,7 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       .input('refreshTokenHash', sql.Char(64), refreshTokenHash)
       .input('refreshExpiresAt', sql.DateTime2(3), refreshExpiresAt)
       .query<IRecordSet<LogSessionRow>>(
-        `INSERT INTO dbo.LogSession
+        `INSERT INTO dbo.log_session
            (uuid, uuid_usuario, successful, timestamp_intento, refresh_token_hash, refresh_expires_at)
          OUTPUT INSERTED.uuid, INSERTED.uuid_usuario, INSERTED.successful, INSERTED.timestamp_intento,
                 INSERTED.refresh_token_hash, INSERTED.refresh_expires_at, INSERTED.revoked_at,
@@ -95,7 +95,7 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       .input('refreshTokenHash', sql.Char(64), refreshTokenHash)
       .input('refreshExpiresAt', sql.DateTime2(3), refreshExpiresAt)
       .query(
-        `UPDATE dbo.LogSession
+        `UPDATE dbo.log_session
          SET refresh_token_hash = @refreshTokenHash,
              refresh_expires_at = @refreshExpiresAt,
              rotado_en = SYSUTCDATETIME()
@@ -108,7 +108,7 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       .request()
       .input('uuid', sql.UniqueIdentifier, uuid)
       .query(
-        `UPDATE dbo.LogSession
+        `UPDATE dbo.log_session
          SET revoked_at = SYSUTCDATETIME()
          WHERE uuid = @uuid AND revoked_at IS NULL`,
       );
@@ -124,7 +124,7 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
         .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
         .input('excluir', sql.UniqueIdentifier, exceptoSessionUuid)
         .query(
-          `UPDATE dbo.LogSession
+          `UPDATE dbo.log_session
            SET revoked_at = SYSUTCDATETIME()
            WHERE uuid_usuario = @uuidUsuario
              AND revoked_at IS NULL
@@ -138,7 +138,7 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       .request()
       .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
       .query(
-        `UPDATE dbo.LogSession
+        `UPDATE dbo.log_session
          SET revoked_at = SYSUTCDATETIME()
          WHERE uuid_usuario = @uuidUsuario
            AND revoked_at IS NULL
@@ -152,12 +152,12 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
       .query<IRecordSet<{ total: number }>>(
         `SELECT COUNT_BIG(*) AS total
-         FROM dbo.LogSession
+         FROM dbo.log_session
          WHERE uuid_usuario = @uuidUsuario
            AND successful = 0
            AND timestamp_intento > COALESCE(
                  (SELECT MAX(timestamp_intento)
-                  FROM dbo.LogSession
+                  FROM dbo.log_session
                   WHERE uuid_usuario = @uuidUsuario AND successful = 1),
                  CONVERT(DATETIME2(3), '1900-01-01'))`,
       );
