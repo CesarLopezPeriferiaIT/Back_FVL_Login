@@ -186,7 +186,7 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
 | T8  | S2, S17, S24                                     | Artefactos de despliegue: `Dockerfile` multi-etapa `node:24-alpine` con `npm ci`, `docker-compose.yml` con SQL Server, `nginx` de referencia con TLS, healthcheck                                                                      | worker | `e852418 ADD DOCKER DEPLOYMENT ARTIFACTS`          |
 | T9  | S15, S23, S24                                    | Documentacion: `docs/api-guide.html`, `CHANGELOG.md`, guia de operacion, pendientes (CAPTCHA, desbloqueo administrativo, OAuth PKCE, LDAP)                                                                                             | inline | `7785b23 ADD API DOCUMENTATION AND CHANGELOG`      |
 | T10 | S24                                              | Documentacion interactiva: Swagger UI en `/api-docs` y documento OpenAPI 3.1 en `/api-docs.json`, con los cuerpos de peticion derivados de los validadores zod                                                                         | inline | `pendiente`                                        |
-| T11 | S24                                              | Documentacion del consumo desde la aplicacion movil: diagramas de secuencia, diagrama de estados de la cuenta y tablas de referencia de endpoints, limites y codigos de error                                                          | worker | `pendiente`|
+| T11 | S24                                              | Documentacion del consumo desde la aplicacion movil: diagramas de secuencia, diagrama de estados de la cuenta y tablas de referencia de endpoints, limites y codigos de error                                                          | worker | `pendiente`                                        |
 
 ## Log
 
@@ -303,3 +303,18 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   y la recuperacion y el cambio de contrasena. Incluye el diagrama de estados de la cuenta, tablas
   de referencia de endpoints, limites y codigos de error, y las reglas que la app movil debe
   cumplir para guardar las credenciales en el almacen seguro del dispositivo.
+- L11 (2026-11-11) - Apertura de los enlaces de correo, decidido por el usuario: el dominio
+  del backend se declara como enlace de app en Android y como enlace universal en iOS, de modo que
+  el correo de confirmacion y el de reseteo abran la aplicacion y sea ella, que ya conoce la API
+  Key, quien llame al backend. No cambia el contenido del correo ni el microservicio.
+  - El nginx de referencia ahora sirve `/.well-known/` desde un volumen de solo lectura, con la
+    politica `no-store`, para que operación publique los dos archivos de verificacion que entrega
+    el equipo de la aplicacion movil: `assetlinks.json` para Android y
+    `apple-app-site-association` para iOS. La estructura esperada de ambos queda documentada en
+    `nginx/well-known/README.md`.
+  - El compose monta ese volumen en el servicio `nginx`, que solo se levanta con el perfil
+    `tls`.
+  - Verificado con un nginx real: `nginx -t` reporta sintaxis correcta, el bloque sirve el
+    archivo con `application/json` y `Cache-Control: no-store`, y el puerto 80 redirige al 443.
+    Fuera de la red de compose el servicio `api` no resuelve, lo que es lo esperado porque alli
+    solo existe dentro de la red `login_default`.

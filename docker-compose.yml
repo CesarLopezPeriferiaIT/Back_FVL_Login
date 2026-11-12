@@ -62,6 +62,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certs:/etc/nginx/certs:ro
+      # Archivos de verificacion de enlaces de app y universal que exige la aplicacion movil.
+      - ./nginx/well-known:/etc/nginx/well-known:ro
     ports:
       - "443:443"
       - "80:80"

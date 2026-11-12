@@ -59,7 +59,7 @@ sequenceDiagram
     end
 ```
 
-El enlace apunta a `GET /backend/dev/v1/auth/confirm-email?token=...`, pero esa ruta exige `X-API-Key`: un navegador que lo abra directamente no puede aportar la cabecera. La vía recomendada es que la app móvil reclame el dominio del backend como enlace de app (Android) o enlace universal (iOS), de modo que el correo abra la aplicación y sea la aplicación, que sí conoce la API Key, quien llame al backend. Mientras esa reserva no exista, el token puede enviarse con `POST /auth/confirm-email`. Un enlace vencido o usado responde `400 TOKEN_INVALIDO`; una cuenta ya confirmada puede responder `409 CUENTA_YA_CONFIRMADA`.
+El enlace apunta a `GET /backend/dev/v1/auth/confirm-email?token=...`, pero esa ruta exige `X-API-Key`: un navegador que lo abra directamente no puede aportar la cabecera. Por eso el dominio del backend se declara como enlace de app y enlace universal: el correo abre la aplicacion y es la aplicacion, que ya conoce la API Key, quien llama al backend. El equipo movil entrega para eso dos archivos que el dominio debe servir en `/.well-known/`, con la estructura indicada en `nginx/well-known/README.md`. Mientras esa reserva no exista, el token puede enviarse con `POST /auth/confirm-email`. Un enlace vencido o usado responde `400 TOKEN_INVALIDO`; una cuenta ya confirmada puede responder `409 CUENTA_YA_CONFIRMADA`.
 
 ## 3. Inicio, uso, renovación y cierre de sesión
 
@@ -125,7 +125,7 @@ sequenceDiagram
     end
 ```
 
-La respuesta genérica corresponde a solicitudes válidas; una entrada inválida puede devolver `400 VALIDACION_FALLIDA`. La validación del enlace con `GET` es opcional y exige la API Key, igual que la confirmación. El mecanismo de apertura del enlace en la app está pendiente. Una contraseña actual incorrecta devuelve `400 PASSWORD_ACTUAL_INVALIDA`.
+La respuesta genérica corresponde a solicitudes válidas; una entrada inválida puede devolver `400 VALIDACION_FALLIDA`. La validación del enlace con `GET` es opcional y exige la API Key, igual que la confirmación: se aplica el mismo mecanismo de enlace de app y universal. Una contraseña actual incorrecta devuelve `400 PASSWORD_ACTUAL_INVALIDA`.
 
 ## Estados de la cuenta
 
@@ -214,4 +214,4 @@ Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado
 - Segundo factor de autenticación, lineamiento 3.8: pendiente; no hay flujo definido en este servicio.
 - OAuth 2.0 con PKCE y apertura del navegador del sistema, lineamiento 1.6.3: pendiente; el flujo actual es login propio con refresh.
 - Desbloqueo administrativo de cuentas `D`: pendiente como endpoint; actualmente requiere operación manual en base de datos.
-- Apertura de los enlaces de correo en la app: los `GET` de confirmación y de reseteo exigen `X-API-Key`, así que el correo debe abrir la aplicación y no el navegador. Falta definir el mecanismo: la vía recomendada es que la app reclame el dominio del backend como enlace de app o universal; si el equipo prefiere un esquema propio, el backend necesita una variable de configuración adicional para construir esos enlaces.
+- Publicación de los archivos de verificación de enlaces: el equipo de la aplicación móvil debe entregar `assetlinks.json` y `apple-app-site-association` con el contenido indicado en `nginx/well-known/README.md`, y operación debe publicarlos en el dominio del backend. Hasta entonces, el enlace de confirmación y el de reseteo abiertas en el navegador responden `401 API_KEY_REQUERIDA`.
