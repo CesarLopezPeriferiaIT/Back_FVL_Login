@@ -19,6 +19,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 -Suite automatizada con Vitest y supertest.
 -Guía de consumo de la API en `docs/api-guide.html`.
 -Documentación interactiva con Swagger UI en `/api-docs` y documento OpenAPI 3.1 en `/api-docs.json`, con los cuerpos de petición derivados de los validadores zod.
+-Documentación del consumo desde la aplicación móvil con diagramas de secuencia, diagrama de estados de la cuenta y tablas de referencia.
 
 ### Cambiado
 

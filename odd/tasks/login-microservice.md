@@ -186,6 +186,7 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
 | T8  | S2, S17, S24                                     | Artefactos de despliegue: `Dockerfile` multi-etapa `node:24-alpine` con `npm ci`, `docker-compose.yml` con SQL Server, `nginx` de referencia con TLS, healthcheck                                                                      | worker | `e852418 ADD DOCKER DEPLOYMENT ARTIFACTS`          |
 | T9  | S15, S23, S24                                    | Documentacion: `docs/api-guide.html`, `CHANGELOG.md`, guia de operacion, pendientes (CAPTCHA, desbloqueo administrativo, OAuth PKCE, LDAP)                                                                                             | inline | `7785b23 ADD API DOCUMENTATION AND CHANGELOG`      |
 | T10 | S24                                              | Documentacion interactiva: Swagger UI en `/api-docs` y documento OpenAPI 3.1 en `/api-docs.json`, con los cuerpos de peticion derivados de los validadores zod                                                                         | inline | `pendiente`                                        |
+| T11 | S24                                              | Documentacion del consumo desde la aplicacion movil: diagramas de secuencia, diagrama de estados de la cuenta y tablas de referencia de endpoints, limites y codigos de error                                                          | worker | `pendiente`|
 
 ## Log
 
@@ -295,3 +296,10 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
   - Al agregar dependencias con Bun, el `package-lock.json` de npm quedo desincronizado y la
     construccion de la imagen fallo en `npm ci`. Se regenero el lockfile de npm, que es el que usa
     la imagen.
+- L10 (2026-11-11) - Documentacion del consumo desde la aplicacion movil, a solicitud del
+  usuario: documento con diagramas de secuencia Mermaid que recorren el primer arranque de la app
+  (registro de la instalacion y obtencion de la API Key), el registro y la confirmacion de correo
+  con la bifurcacion de los terminos, el ciclo de inicio de sesion con renovacion rotativa y cierre,
+  y la recuperacion y el cambio de contrasena. Incluye el diagrama de estados de la cuenta, tablas
+  de referencia de endpoints, limites y codigos de error, y las reglas que la app movil debe
+  cumplir para guardar las credenciales en el almacen seguro del dispositivo.

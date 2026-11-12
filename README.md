@@ -13,6 +13,7 @@ Subdireccion de Informatica.
 | -------------------------------------- | ------------------------------------------ |
 | Especificacion funcional y técnica     | `odd/tasks/login-microservice.md`          |
 | Guia de consumo de la API              | `docs/api-guide.html`                      |
+| Consumo desde la app movil             | `docs/flujo-aplicacion-movil.md`           |
 | Documentacion interactiva (Swagger UI) | `/api-docs` del servicio en ejecucion      |
 | Documento OpenAPI 3.1                  | `/api-docs.json` del servicio en ejecucion |
 | Registro de cambios                    | `CHANGELOG.md`                             |
