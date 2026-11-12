@@ -13,7 +13,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 -Desactivación de cuentas en estado `D` tras diez intentos fallidos consecutivos.
 -API Key de cliente almacenada como hash SHA-256 y endpoint público de registro de instalaciones.
 -Cabeceras de seguridad con Helmet, CORS por lista explícita y límites por identificador y dirección IP.
--Esquema idempotente de las tablas Usuario, LogSession y ApiKey en SQL Server.
+-Esquema idempotente de las tablas Usuario, LogSession y ApiKey en SQL Server, definido en archivos .sql que se aplican tanto desde la aplicación como directamente con sqlcmd.
 -Creación idempotente de la base de datos por código al aplicar el esquema.
 -Imagen Docker multietapa con node:24-alpine, Docker Compose con SQL Server y configuración de referencia nginx con TLS.
 -Suite automatizada con Vitest y supertest.

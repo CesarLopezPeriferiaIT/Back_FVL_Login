@@ -3,6 +3,14 @@
 -- Convencion: las fechas se almacenan en UTC (SYSUTCDATETIME) y los identificadores
 -- de sesion se generan en la aplicacion para que el registro de la base y el de los
 -- logs de aplicacion compartan el mismo valor.
+--
+-- QUOTED_IDENTIFIER y ANSI_NULLS se activan de forma explicita porque sqlcmd los deja
+-- desactivados y el indice filtrado de LogSession los exige en ON. Asi el archivo se aplica
+-- igual con sqlcmd que a traves del script de la aplicacion.
+
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
 
 IF OBJECT_ID('dbo.Usuario', 'U') IS NULL
 BEGIN

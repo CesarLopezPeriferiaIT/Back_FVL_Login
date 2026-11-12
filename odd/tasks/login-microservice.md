@@ -318,3 +318,16 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
     archivo con `application/json` y `Cache-Control: no-store`, y el puerto 80 redirige al 443.
     Fuera de la red de compose el servicio `api` no resuelve, lo que es lo esperado porque alli
     solo existe dentro de la red `login_default`.
+- L12 (2026-11-11) - A solicitud del usuario, todo el DDL se movio a archivos .sql y el
+  script de aplicacion quedo sin sentencias de creacion:
+  - `db/init/00-create-database.sql` crea la base de datos si no existe, sustituyendo la variable
+    `$(DB_NAME)` por el valor de `DB_DATABASE`. Es el unico script que se ejecuta contra master.
+  - `db/init/01-schema.sql` mantiene las tres tablas con sus indices y restricciones.
+  - `scripts/apply-schema.ts` ahora solo lee y envia los archivos .sql, lote por lote.
+  - Al verificar que el archivo se aplica por si solo con sqlcmd se detecto que el indice filtrado
+    de LogSession fallaba, porque sqlcmd arranca con QUOTED_IDENTIFIER desactivado y un indice
+    filtrado lo exige en ON. El defecto estaba latente porque el driver de Node lo activaba por su
+    cuenta. Se corrigio activando QUOTED_IDENTIFIER y ANSI_NULLS de forma explicita al inicio del
+    archivo, de modo que el esquema se aplica igual con sqlcmd que desde la aplicacion.
+  - Verificado sobre un SQL Server real: base creada desde cero, tres tablas y tres indices unicos
+    creados, reaplicacion sin duplicados y segunda ejecucion de db:init sin recrear la base.

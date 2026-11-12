@@ -1,13 +1,17 @@
 /**
  * Aplica los scripts de esquema de db/init contra la base de datos configurada.
  *
- * Si la base de datos todavia no existe, la crea de forma idempotente conectandose a master. En
- * los ambientes de calidad y produccion la base la crea el administrador de bases de datos y el
- * rol de la aplicacion solo necesita permisos de lectura y escritura sobre ella, por lo que alli
- * el script nunca intenta crearla.
+ * Todo el DDL vive en archivos .sql: este script no contiene sentencias de creacion, solo las lee
+ * y las envia al servidor. El archivo 00-create-database.sql es el unico que se ejecuta contra la
+ * base de sistema master, y su variable $(DB_NAME) se sustituye por el valor de DB_DATABASE.
  *
- * Los scripts de esquema se ejecutan en orden alfabetico y cada bloque separado por GO se envia
- * como un lote independiente, de modo que los archivos pueden reutilizarse con sqlcmd.
+ * Si la base de datos todavia no existe, se crea de forma idempotente. En los ambientes de
+ * calidad y produccion la base la crea el administrador de bases de datos y el rol de la
+ * aplicacion solo necesita permisos de lectura y escritura sobre ella, por lo que alli el script
+ * nunca intenta crearla.
+ *
+ * Los scripts se ejecutan en orden alfabetico y cada bloque separado por GO se envia como un
+ * lote independiente, de modo que los archivos pueden reutilizarse con sqlcmd.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -20,9 +24,16 @@ import type { IRecordSet } from 'mssql';
 import { loadConfig } from '../src/config/env.js';
 import type { AppConfig } from '../src/config/env.js';
 import { closePool, createPool } from '../src/infrastructure/database/pool.js';
+import type { Database } from '../src/infrastructure/database/pool.js';
 
 const SCHEMA_DIR = path.resolve(process.cwd(), 'db', 'init');
 const BASE_DE_SISTEMA = 'master';
+
+/** Script que crea la base de datos y que se ejecuta contra master. */
+const ARCHIVO_CREACION_BASE = '00-create-database.sql';
+
+/** Variable que el script de creacion de base de datos espera sustituir. */
+const VARIABLE_NOMBRE_BASE = '$(DB_NAME)';
 
 /**
  * Formato admitido para el nombre de la base. El nombre se interpola en una sentencia DDL que no
@@ -47,25 +58,35 @@ const dividirEnLotes = (contenido: string): string[] =>
     .map((lote) => lote.trim())
     .filter((lote) => lote.length > 0);
 
+/**
+ * Envia un script al servidor, lote por lote.
+ */
+const aplicarScript = async (pool: Database, archivo: string, contenido: string): Promise<void> => {
+  for (const lote of dividirEnLotes(contenido)) {
+    await pool.request().batch(lote);
+  }
+  process.stdout.write(`Esquema aplicado: ${archivo}\n`);
+};
+
 const esperar = async (milisegundos: number): Promise<void> =>
   new Promise((resolver) => setTimeout(resolver, milisegundos));
 
 /**
- * Crea la base de datos si no existe. La sentencia va dentro de EXEC porque en T-SQL la
- * instruccion CREATE DATABASE debe ser la unica de su lote.
+ * Crea la base de datos si no existe, ejecutando el script que la define.
  */
 const crearBaseSiNoExiste = async (config: AppConfig): Promise<void> => {
   if (!NOMBRE_BASE_SEGURO.test(config.db.database)) {
     throw new Error(`El nombre de la base de datos no es valido: ${config.db.database}`);
   }
 
+  const contenido = await readFile(path.join(SCHEMA_DIR, ARCHIVO_CREACION_BASE), 'utf8');
+  const conNombre = contenido.split(VARIABLE_NOMBRE_BASE).join(config.db.database);
+
   const poolMaestro = await createPool(config, BASE_DE_SISTEMA);
   try {
-    await poolMaestro
-      .request()
-      .batch(
-        `IF DB_ID(N'${config.db.database}') IS NULL EXEC('CREATE DATABASE [${config.db.database}]');`,
-      );
+    for (const lote of dividirEnLotes(conNombre)) {
+      await poolMaestro.request().batch(lote);
+    }
   } finally {
     await closePool(poolMaestro);
   }
@@ -150,11 +171,11 @@ const main = async (): Promise<void> => {
   const pool = await createPool(config);
   try {
     for (const archivo of await listarScripts()) {
-      const contenido = await readFile(path.join(SCHEMA_DIR, archivo), 'utf8');
-      for (const lote of dividirEnLotes(contenido)) {
-        await pool.request().batch(lote);
+      if (archivo === ARCHIVO_CREACION_BASE) {
+        continue;
       }
-      process.stdout.write(`Esquema aplicado: ${archivo}\n`);
+      const contenido = await readFile(path.join(SCHEMA_DIR, archivo), 'utf8');
+      await aplicarScript(pool, archivo, contenido);
     }
   } finally {
     await closePool(pool);

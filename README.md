@@ -46,7 +46,6 @@ docker compose up -d
 # Aplicar el esquema. Si la base de datos FVL_Login todavia no existe, el script la crea de
 # forma idempotente y despues aplica las tablas. Volver a ejecutarlo no vuelve a crearla.
 bun run db:init
-
 # Ejecutar en modo vigilancia.
 bun run dev
 ```
@@ -54,6 +53,26 @@ bun run dev
 En los ambientes de calidad y produccion la base de datos la crea el administrador de bases de
 datos y el rol de la aplicacion solo necesita permisos de lectura y escritura sobre ella. En ese
 caso el script nunca intenta crearla y solo aplica el esquema.
+
+## Esquema de base de datos
+
+Todo el DDL vive en archivos `.sql`. El script `bun run db:init` no contiene sentencias de
+creacion: solo lee esos archivos y los envia al servidor.
+
+| Archivo                          | Que define                                                                                            | Donde se aplica                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `db/init/00-create-database.sql` | Crea la base de datos si no existe. Sustituye la variable `$(DB_NAME)` por el valor de `DB_DATABASE`. | Contra `master`                 |
+| `db/init/01-schema.sql`          | Las tablas `Usuario`, `LogSession` y `ApiKey` con sus indices y restricciones.                        | Contra la base de la aplicacion |
+| `db/scripts/unlock-user.sql`     | Procedimiento manual para desbloquear una cuenta desactivada.                                         | Contra la base de la aplicacion |
+
+Los tres son idempotentes: pueden ejecutarse varias veces sin duplicar objetos. Los archivos se
+aplican en orden alfabetico y cada bloque separado por `GO` se envia como un lote independiente,
+por lo que tambien se pueden aplicar a mano con `sqlcmd`, sin depender de Node:
+
+```bash
+docker cp db/init/01-schema.sql login-sqlserver-1:/tmp/01-schema.sql
+docker exec -it login-sqlserver-1 /opt/mssql-tools18/bin/sqlcmd   -S localhost -U sa -P '<senia>' -C -d FVL_Login -i /tmp/01-schema.sql
+```
 
 ## Verificacion
 
