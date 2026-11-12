@@ -5,98 +5,98 @@
 -- logs de aplicacion compartan el mismo valor.
 --
 -- QUOTED_IDENTIFIER y ANSI_NULLS se activan de forma explicita porque sqlcmd los deja
--- desactivados y el indice filtrado de LogSession los exige en ON. Asi el archivo se aplica
+-- desactivados y el indice filtrado de log_session los exige en ON. Asi el archivo se aplica
 -- igual con sqlcmd que a traves del script de la aplicacion.
 
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
 
-IF OBJECT_ID('dbo.Usuario', 'U') IS NULL
+IF OBJECT_ID('dbo.usuario', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.Usuario (
+    CREATE TABLE dbo.usuario (
         uuid               UNIQUEIDENTIFIER NOT NULL,
         Email              NVARCHAR(256)    NOT NULL,
         pass_hash          NVARCHAR(512)    NOT NULL,
-        estado             CHAR(1)          NOT NULL CONSTRAINT DF_Usuario_estado DEFAULT 'C',
-        fecha_creacion     DATETIME2(3)     NOT NULL CONSTRAINT DF_Usuario_fecha_creacion DEFAULT SYSUTCDATETIME(),
-        fecha_modificacion DATETIME2(3)     NOT NULL CONSTRAINT DF_Usuario_fecha_modificacion DEFAULT SYSUTCDATETIME(),
-        tyc                BIT              NOT NULL CONSTRAINT DF_Usuario_tyc DEFAULT 0,
-        CONSTRAINT PK_Usuario PRIMARY KEY CLUSTERED (uuid),
-        CONSTRAINT CK_Usuario_estado CHECK (estado IN ('A', 'I', 'C', 'D'))
+        estado             CHAR(1)          NOT NULL CONSTRAINT DF_usuario_estado DEFAULT 'C',
+        fecha_creacion     DATETIME2(3)     NOT NULL CONSTRAINT DF_usuario_fecha_creacion DEFAULT SYSUTCDATETIME(),
+        fecha_modificacion DATETIME2(3)     NOT NULL CONSTRAINT DF_usuario_fecha_modificacion DEFAULT SYSUTCDATETIME(),
+        tyc                BIT              NOT NULL CONSTRAINT DF_usuario_tyc DEFAULT 0,
+        CONSTRAINT PK_usuario PRIMARY KEY CLUSTERED (uuid),
+        CONSTRAINT CK_usuario_estado CHECK (estado IN ('A', 'I', 'C', 'D'))
     );
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.Usuario') AND name = 'UX_Usuario_Email'
+    WHERE object_id = OBJECT_ID('dbo.usuario') AND name = 'UX_usuario_email'
 )
 BEGIN
-    CREATE UNIQUE INDEX UX_Usuario_Email ON dbo.Usuario (Email);
+    CREATE UNIQUE INDEX UX_usuario_email ON dbo.usuario (Email);
 END
 GO
 
-IF OBJECT_ID('dbo.LogSession', 'U') IS NULL
+IF OBJECT_ID('dbo.log_session', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.LogSession (
+    CREATE TABLE dbo.log_session (
         uuid               UNIQUEIDENTIFIER NOT NULL,
         uuid_usuario       UNIQUEIDENTIFIER NOT NULL,
         successful         BIT              NOT NULL,
-        timestamp_intento  DATETIME2(3)     NOT NULL CONSTRAINT DF_LogSession_timestamp DEFAULT SYSUTCDATETIME(),
+        timestamp_intento  DATETIME2(3)     NOT NULL CONSTRAINT DF_log_session_timestamp DEFAULT SYSUTCDATETIME(),
         refresh_token_hash CHAR(64)         NULL,
         refresh_expires_at DATETIME2(3)     NULL,
         revoked_at         DATETIME2(3)     NULL,
         rotado_en          DATETIME2(3)     NULL,
-        CONSTRAINT PK_LogSession PRIMARY KEY CLUSTERED (uuid),
-        CONSTRAINT FK_LogSession_Usuario FOREIGN KEY (uuid_usuario) REFERENCES dbo.Usuario (uuid)
+        CONSTRAINT PK_log_session PRIMARY KEY CLUSTERED (uuid),
+        CONSTRAINT FK_log_session_usuario FOREIGN KEY (uuid_usuario) REFERENCES dbo.usuario (uuid)
     );
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.LogSession') AND name = 'IX_LogSession_usuario_fecha'
+    WHERE object_id = OBJECT_ID('dbo.log_session') AND name = 'IX_log_session_usuario_fecha'
 )
 BEGIN
-    CREATE INDEX IX_LogSession_usuario_fecha ON dbo.LogSession (uuid_usuario, timestamp_intento DESC);
+    CREATE INDEX IX_log_session_usuario_fecha ON dbo.log_session (uuid_usuario, timestamp_intento DESC);
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.LogSession') AND name = 'UX_LogSession_refresh_hash'
+    WHERE object_id = OBJECT_ID('dbo.log_session') AND name = 'UX_log_session_refresh_hash'
 )
 BEGIN
-    CREATE UNIQUE INDEX UX_LogSession_refresh_hash
-        ON dbo.LogSession (refresh_token_hash)
+    CREATE UNIQUE INDEX UX_log_session_refresh_hash
+        ON dbo.log_session (refresh_token_hash)
         WHERE refresh_token_hash IS NOT NULL;
 END
 GO
 
-IF OBJECT_ID('dbo.ApiKey', 'U') IS NULL
+IF OBJECT_ID('dbo.api_key', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.ApiKey (
+    CREATE TABLE dbo.api_key (
         uuid               UNIQUEIDENTIFIER NOT NULL,
         key_hash           CHAR(64)         NOT NULL,
         nombre             NVARCHAR(128)    NOT NULL,
         tipo_cliente       CHAR(8)          NOT NULL,
         permisos           NVARCHAR(512)    NOT NULL,
-        revocado           BIT              NOT NULL CONSTRAINT DF_ApiKey_revocado DEFAULT 0,
-        fecha_creacion     DATETIME2(3)     NOT NULL CONSTRAINT DF_ApiKey_fecha_creacion DEFAULT SYSUTCDATETIME(),
-        fecha_modificacion DATETIME2(3)     NOT NULL CONSTRAINT DF_ApiKey_fecha_modificacion DEFAULT SYSUTCDATETIME(),
+        revocado           BIT              NOT NULL CONSTRAINT DF_api_key_revocado DEFAULT 0,
+        fecha_creacion     DATETIME2(3)     NOT NULL CONSTRAINT DF_api_key_fecha_creacion DEFAULT SYSUTCDATETIME(),
+        fecha_modificacion DATETIME2(3)     NOT NULL CONSTRAINT DF_api_key_fecha_modificacion DEFAULT SYSUTCDATETIME(),
         ultimo_uso         DATETIME2(3)     NULL,
-        CONSTRAINT PK_ApiKey PRIMARY KEY CLUSTERED (uuid),
-        CONSTRAINT CK_ApiKey_tipo_cliente CHECK (tipo_cliente IN ('mobile', 'web-bff', 'web'))
+        CONSTRAINT PK_api_key PRIMARY KEY CLUSTERED (uuid),
+        CONSTRAINT CK_api_key_tipo_cliente CHECK (tipo_cliente IN ('mobile', 'web-bff', 'web'))
     );
 END
 GO
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.ApiKey') AND name = 'UX_ApiKey_key_hash'
+    WHERE object_id = OBJECT_ID('dbo.api_key') AND name = 'UX_api_key_key_hash'
 )
 BEGIN
-    CREATE UNIQUE INDEX UX_ApiKey_key_hash ON dbo.ApiKey (key_hash);
+    CREATE UNIQUE INDEX UX_api_key_key_hash ON dbo.api_key (key_hash);
 END
 GO
