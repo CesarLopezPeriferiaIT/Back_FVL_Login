@@ -29,6 +29,9 @@ Subdireccion de Informatica.
 
 ## Desarrollo local
 
+La base de datos no se levanta en Docker: el servicio se conecta a la instancia de SQL Server
+desplegada que se indique en el archivo de variables de entorno.
+
 ```bash
 # Instalar dependencias con Bun (entorno de desarrollo local).
 bun install
@@ -37,22 +40,39 @@ bun install
 # La plantilla se versiona; el archivo .env con valores reales nunca se versiona.
 cp .env.example .env
 
-# Definir en el archivo .env los secretos que el compose exige de forma explicita:
+# Definir en el archivo .env lo que el compose exige de forma explicita:
 # JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET, DB_USER y DB_PASSWORD.
+# El servidor de base de datos ya viene apuntado a la instancia desplegada en la plantilla.
 
-# Levantar SQL Server y el servicio.
+# Aplicar el esquema. Si la base de datos todavia no existe, el script la crea de forma
+# idempotente y despues aplica las tablas. Volver a ejecutarlo no vuelve a crearla.
+bun run db:init
+
+# Levantar el servicio. La base de datos es la desplegada, no un contenedor local.
 docker compose up -d
 
-# Aplicar el esquema. Si la base de datos FVL_Login todavia no existe, el script la crea de
-# forma idempotente y despues aplica las tablas. Volver a ejecutarlo no vuelve a crearla.
-bun run db:init
 # Ejecutar en modo vigilancia.
 bun run dev
 ```
 
+Para trabajar contra una base local en Docker, en lugar de la desplegada:
+
+```bash
+docker compose --profile local-db up -d sqlserver
+```
+
+y definir `DB_SERVER=sqlserver` en el archivo `.env`.
+
 En los ambientes de calidad y produccion la base de datos la crea el administrador de bases de
 datos y el rol de la aplicacion solo necesita permisos de lectura y escritura sobre ella. En ese
 caso el script nunca intenta crearla y solo aplica el esquema.
+
+### Conexion sin certificado
+
+La plantilla deja `DB_ENCRYPT=true` y `DB_TRUST_SERVER_CERTIFICATE=true`: el trafico hacia la base
+va cifrado, pero no se valida el certificado del servidor porque no se entrega la cadena de la
+AWS RDS CA. Para validar el certificado, hay que instalar esa cadena en la imagen y dejar
+`DB_TRUST_SERVER_CERTIFICATE=false`.
 
 ## Esquema de base de datos
 
@@ -70,8 +90,12 @@ aplican en orden alfabetico y cada bloque separado por `GO` se envia como un lot
 por lo que tambien se pueden aplicar a mano con `sqlcmd`, sin depender de Node:
 
 ```bash
+# Contra la base local en Docker (perfil local-db).
 docker cp db/init/01-schema.sql login-sqlserver-1:/tmp/01-schema.sql
 docker exec -it login-sqlserver-1 /opt/mssql-tools18/bin/sqlcmd   -S localhost -U sa -P '<senia>' -C -d FVL_Login -i /tmp/01-schema.sql
+
+# Contra la instancia desplegada, desde cualquier equipo con las herramientas de sqlcmd.
+sqlcmd -S hpp-dev-sql.cul4syiguuqq.us-east-1.rds.amazonaws.com -U '<usuario>' -P '<senia>'   -C -d FVL_Login -i db/init/01-schema.sql
 ```
 
 ## Verificacion

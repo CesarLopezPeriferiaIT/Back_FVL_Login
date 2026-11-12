@@ -348,3 +348,17 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
     (registro de instalacion, registro, confirmacion, login, perfil, renovacion y cierre). Tambien
     se verifico el desbloqueo manual: la cuenta paso de D a A y el contador de intentos quedo en
     cero, con el login restored.
+- L14 (2026-11-12) - Cambio del destino de la base de datos, a solicitud del usuario: el
+  servicio deja de apuntar a la instancia local en Docker y se conecta a la instancia de SQL Server
+  desplegada en AWS RDS.
+  - La plantilla de variables de entorno apunta al host desplegado en el puerto 1433. El usuario y
+    la contrasena no se versionan: siguen viniendo del archivo local de variables de entorno.
+  - El cifrado del trafico queda activo y la validacion del certificado del servidor desactivada,
+    porque no se entrega la cadena de la AWS RDS CA. Se documento como ajustar esa parte si la
+    institucion exige validar el certificado.
+  - El servicio de base de datos local de Docker queda en el perfil local-db: por defecto
+    `docker compose up -d` levanta solo la API y la base de datos es la desplegada. La API ya no
+    fija DB_SERVER en el compose, de modo que la instancia se decide unicamente desde el archivo
+    local de variables de entorno.
+  - Verificado que la instancia responde por el puerto 1433 tanto desde la maquina como desde el
+    contenedor, y que el esquema se puede aplicar contra ella con sqlcmd.

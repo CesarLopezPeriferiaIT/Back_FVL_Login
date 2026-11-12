@@ -1,6 +1,11 @@
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    # Base de datos local para desarrollo aislado. No se levanta por defecto: el servicio usa la
+    # instancia desplegada que se indique en el archivo .env. Para usarla:
+    #   docker compose --profile local-db up -d
+    # y definir DB_SERVER=sqlserver en el archivo .env.
+    profiles: ["local-db"]
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-LocalDev_ChangeMe_2026}
@@ -21,24 +26,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    depends_on:
-      sqlserver:
-        condition: service_healthy
     env_file:
       - path: .env
         required: false
     environment:
       APP_ENV: dev
       PORT: "3000"
-      DB_SERVER: sqlserver
-      DB_PORT: "1433"
-      DB_DATABASE: FVL_Login
-      DB_TRUST_SERVER_CERTIFICATE: "true"
       MAIL_TRANSPORT: console
       LOG_LEVEL: info
       TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"
       # Los secretos no tienen valor por defecto: compose los toma del archivo .env de la raiz del
       # proyecto y falla de forma explicita si no estan definidos. El .env nunca se versiona.
+      # La conexion a la base de datos sale tambien del .env: servidor, puerto, base de datos,
+      # usuario, contrasena, cifrado y confianza en el certificado.
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET en el archivo .env}
       JWT_CONFIRM_SECRET: ${JWT_CONFIRM_SECRET:?defina JWT_CONFIRM_SECRET en el archivo .env}
       JWT_RESET_SECRET: ${JWT_RESET_SECRET:?defina JWT_RESET_SECRET en el archivo .env}
