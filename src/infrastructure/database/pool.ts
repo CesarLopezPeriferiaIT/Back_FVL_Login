@@ -33,6 +33,9 @@ export const createPool = async (
       max: config.db.poolMax,
       min: 0,
       idleTimeoutMillis: 30000,
+      // La primera conexion contra una base remota tarda mas que las siguientes: sin este margen
+      // la primera peticion tras un despliegue se queda esperando una conexion del pool.
+      acquireTimeoutMillis: config.db.poolAcquireTimeoutMs,
     },
     options: {
       encrypt: config.db.encrypt,

@@ -119,6 +119,33 @@ const asegurarBaseDeDatos = async (config: AppConfig): Promise<void> => {
     return;
   }
 
+  // Un fallo de conexion no significa que la base falte: se consulta el catalogo del servidor
+  // para distinguir un problema de conectividad o de permisos de una base que aun no existe.
+  let existe = false;
+  let motivoDeConsulta: string | null = null;
+
+  try {
+    existe = await baseDeDatosExiste(config);
+  } catch (error) {
+    motivoDeConsulta = error instanceof Error ? error.message : String(error);
+  }
+
+  if (motivoDeConsulta !== null) {
+    throw new Error(
+      `No se pudo verificar si la base de datos ${config.db.database} existe: ${motivoDeConsulta}. ` +
+        `Error original al conectar: ${conexion.motivo}`,
+      { cause: new Error(conexion.motivo) },
+    );
+  }
+
+  if (existe) {
+    throw new Error(
+      `La base de datos ${config.db.database} existe pero no se pudo conectar: ${conexion.motivo}. ` +
+        `Revise el tiempo de espera de conexion, las credenciales, los permisos y la conectividad.`,
+      { cause: new Error(conexion.motivo) },
+    );
+  }
+
   try {
     await crearBaseSiNoExiste(config);
   } catch (error) {

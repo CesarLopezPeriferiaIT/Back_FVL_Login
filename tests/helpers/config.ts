@@ -37,6 +37,7 @@ export const configDePrueba = (): AppConfig => ({
     trustServerCertificate: true,
     poolMax: 5,
     connectTimeoutMs: 5000,
+    poolAcquireTimeoutMs: 60000,
   },
   refresh: { ttlDays: 30 },
   cors: { allowedOrigins: ['https://app.pruebas.fvl.org.co'] },

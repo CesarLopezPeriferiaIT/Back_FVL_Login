@@ -362,3 +362,25 @@ same-origin`; `Permissions-Policy` restrictivo; `X-DNS-Prefetch-Control: off`;
     local de variables de entorno.
   - Verificado que la instancia responde por el puerto 1433 tanto desde la maquina como desde el
     contenedor, y que el esquema se puede aplicar contra ella con sqlcmd.
+- L15 (2026-11-12) - Conexion a la instancia de SQL Server desplegada en AWS RDS:
+  - La base de datos de la aplicacion es `BD_CONTROL_PRENATAL`, que es la unica existente en la
+    instancia. Comparte base con la aplicacion de Control Natal, cuyas 27 tablas y sus datos quedan
+    intactos: el script de esquema solo crea y altera los objetos del servicio de login.
+  - La plantilla de variables de entorno apunta al host desplegado. El usuario y la contrasena se
+    definitan en el archivo local de variables de entorno, que nunca se versiona.
+  - El cifrado queda activo y sin validar el certificado del servidor, equivalente a la
+    configuracion de la referencia: cifrar si el servidor lo soporta y no comprobar el
+    certificado. La conexion usa autenticacion de SQL Server.
+  - Se corrigio el tiempo de espera de adquisicion del pool, que estaba en el valor por defecto de
+    la libreria (30 segundos) y no daba margen a la primera conexion contra una base remota: la
+    primera peticion tras un despliegue fallaba con un tiempo de espera agotado del pool. Ahora es
+    configurable con DB_POOL_ACQUIRE_TIMEOUT.
+  - El script de aplicacion del esquema diferencia ahora un fallo de conectividad de una base
+    inexistente: antes reportaba que no podia crear la base cuando el problema era el tiempo de
+    espera de la conexion.
+  - Verificado contra la instancia real: esquema aplicado con los nombres nuevos, y ciclo completo
+    de la API sobre ella (registro de instalacion, registro, confirmacion, inicio de sesion,
+    perfil, renovacion y cierre), con las filas comprobadas en la base desplegada.
+  - Nota del entorno: desde esta maquina el tráfico a la RDS no completa el handshake TDS con el
+    driver, aunque el acceso grafico si lo logra. Desde el contenedor, que es donde corre el
+    servicio, la conexion funciona.

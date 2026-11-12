@@ -60,6 +60,7 @@ const envSchema = z.object({
   DB_TRUST_SERVER_CERTIFICATE: booleanoSchema.default(false),
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),
   DB_POOL_CONNECT_TIMEOUT: z.coerce.number().int().positive().default(15000),
+  DB_POOL_ACQUIRE_TIMEOUT: z.coerce.number().int().positive().default(60000),
 
   CORS_ALLOWED_ORIGINS: listaSeparadaSchema,
   TRUSTED_PROXY_CIDRS: listaSeparadaSchema,
@@ -107,6 +108,7 @@ export interface AppConfig {
     trustServerCertificate: boolean;
     poolMax: number;
     connectTimeoutMs: number;
+    poolAcquireTimeoutMs: number;
   };
   refresh: { ttlDays: number };
   cors: { allowedOrigins: string[] };
@@ -159,6 +161,7 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     trustServerCertificate: valores.DB_TRUST_SERVER_CERTIFICATE,
     poolMax: valores.DB_POOL_MAX,
     connectTimeoutMs: valores.DB_POOL_CONNECT_TIMEOUT,
+    poolAcquireTimeoutMs: valores.DB_POOL_ACQUIRE_TIMEOUT,
   },
   refresh: { ttlDays: valores.REFRESH_TOKEN_TTL_DAYS },
   cors: { allowedOrigins: valores.CORS_ALLOWED_ORIGINS },
