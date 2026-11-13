@@ -20,6 +20,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 -Guía de consumo de la API en `docs/api-guide.html`.
 -Documentación interactiva con Swagger UI en `/api-docs` y documento OpenAPI 3.1 en `/api-docs.json`, con los cuerpos de petición derivados de los validadores zod.
 -Documentación del consumo desde la aplicación móvil con diagramas de secuencia, diagrama de estados de la cuenta y tablas de referencia.
+-Soporte de pin de acceso por cuenta: configuración, verificación como segundo factor y revocación, con el verificador cifrado con argon2id y los intentos fallidos contados aparte del bloqueo de la cuenta.
 -Conexión a la instancia de SQL Server desplegada en AWS RDS, configurada por variables de entorno, con el cifrado del tráfico activo y sin validación del certificado del servidor.
 
 ### Cambiado

@@ -237,7 +237,7 @@ Content-Type: application/json
 {"email":"usuario@example.org","password":"Ejemplo123"}
 
 HTTP/1.1 200 OK
-{"message":"Sesion iniciada.","error":null,"code":0,"data":{"token_acceso":"TOKEN_ACCESO","token_refresh":"TOKEN_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:00:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
+{"message":"Sesion iniciada.","error":null,"code":0,"data":{"token_acceso":"TOKEN_ACCESO","token_refresh":"TOKEN_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:00:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"pin_configurado":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
           <p>
             Errores adicionales: <code>VALIDACION_FALLIDA</code>,
             <code>CREDENCIALES_INVALIDAS</code>, <code>CUENTA_POR_CONFIRMAR</code>,
@@ -364,6 +364,73 @@ HTTP/1.1 200 OK
           <p>
             Errores adicionales: <code>VALIDACION_FALLIDA</code>,
             <code>PASSWORD_ACTUAL_INVALIDA</code>, <code>USUARIO_NO_ENCONTRADO</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/pin/configurar</h3>
+          <p>
+            Alcance <code>auth:pin</code>; cabeceras <code>X-API-Key</code>,
+            <code>Authorization: Bearer TOKEN_ACCESO</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>pin</code>, de 4
+            a 12 dígitos, y <code>dispositivo</code>, cadena que identifica el equipo. Configura o
+            cambia el pin de acceso de la cuenta y revoca el anterior. El pin se guarda cifrado con
+            argon2id y no se vuelve a mostrar.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/pin/configurar HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Authorization: Bearer TOKEN_ACCESO
+Content-Type: application/json
+
+{"pin":"482915","dispositivo":"iphone-de-la-paciente"}
+
+HTTP/1.1 201 Created
+{"message":"Pin de acceso configurado.","error":null,"code":0,"data":{"pin_configurado":true}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>TOKEN_REQUERIDO</code>,
+            <code>USUARIO_NO_ENCONTRADO</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/pin/verificar</h3>
+          <p>
+            Alcance <code>auth:pin</code>; cabeceras <code>X-API-Key</code>,
+            <code>Authorization: Bearer TOKEN_ACCESO</code> y
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>pin</code>, de 4
+            a 12 dígitos. Verifica el pin de la cuenta y sirve como segunda confirmación en las
+            operaciones sensibles. Tras cinco intentos fallidos el pin queda revocado y la cuenta
+            sigue activa, porque el bloqueo de la cuenta es para el acceso con contraseña.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/pin/verificar HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Authorization: Bearer TOKEN_ACCESO
+Content-Type: application/json
+
+{"pin":"482915"}
+
+HTTP/1.1 200 OK
+{"message":"Pin verificado.","error":null,"code":0,"data":{"verificado":true}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>PIN_INVALIDO</code>,
+            <code>PIN_REVOCADO</code>, <code>PIN_NO_CONFIGURADO</code>,
+            <code>RATE_LIMIT_EXCEDIDO</code>.
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/pin/revocar</h3>
+          <p>
+            Alcance <code>auth:pin</code>; cabeceras <code>X-API-Key</code> y
+            <code>Authorization: Bearer TOKEN_ACCESO</code>. Sin cuerpo. Revoca el pin de la cuenta.
+            El cliente debe borrar el verificador que guarda en el dispositivo y volver a pedir el
+            pin en la siguiente apertura.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/pin/revocar HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Authorization: Bearer TOKEN_ACCESO
+
+HTTP/1.1 200 OK
+{"message":"Pin de acceso revocado.","error":null,"code":0,"data":{"pin_revocado":true}}</code></pre>
+          <p>
+            Errores adicionales: <code>TOKEN_REQUERIDO</code>, <code>USUARIO_NO_ENCONTRADO</code>.
           </p>
         </section>
         <section>
@@ -536,6 +603,21 @@ HTTP/1.1 200 OK
               <td>USUARIO_NO_ENCONTRADO</td>
               <td>404</td>
               <td>No existe la cuenta asociada.</td>
+            </tr>
+            <tr>
+              <td>PIN_INVALIDO</td>
+              <td>401</td>
+              <td>El pin de acceso no es correcto.</td>
+            </tr>
+            <tr>
+              <td>PIN_REVOCADO</td>
+              <td>403</td>
+              <td>El pin se revocó por intentos fallidos.</td>
+            </tr>
+            <tr>
+              <td>PIN_NO_CONFIGURADO</td>
+              <td>404</td>
+              <td>La cuenta no tiene ningún pin de acceso configurado.</td>
             </tr>
             <tr>
               <td>ERROR_INTERNO</td>

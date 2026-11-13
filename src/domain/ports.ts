@@ -12,6 +12,7 @@ import type {
   EstadoUsuario,
   LogSession,
   Permiso,
+  PinAcceso,
   TipoCliente,
   Usuario,
 } from './entities.js';
@@ -76,4 +77,21 @@ export interface MensajeCorreo {
 /** Servicio de envio de correo. */
 export interface MailSender {
   enviar(mensaje: MensajeCorreo): Promise<void>;
+}
+
+/** Datos minimos para registrar el verificador de un pin de acceso. */
+export interface NuevoPin {
+  uuid: string;
+  uuidUsuario: string;
+  dispositivo: string;
+  hash: string;
+}
+
+/** Acceso a los pines de acceso de las cuentas. */
+export interface PinRepository {
+  buscarActivo(uuidUsuario: string): Promise<PinAcceso | null>;
+  crear(pin: NuevoPin): Promise<PinAcceso>;
+  registrarIntentoFallido(uuid: string): Promise<void>;
+  registrarUso(uuid: string): Promise<void>;
+  revocarActivos(uuidUsuario: string): Promise<void>;
 }

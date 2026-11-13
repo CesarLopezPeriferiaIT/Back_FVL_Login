@@ -6,6 +6,7 @@
  */
 import type { Request, RequestHandler } from 'express';
 import type { AuthService, ResultadoSesion } from '../../domain/auth-service.js';
+import type { PinService } from '../../domain/pin-service.js';
 import { AppError } from '../../shared/errors.js';
 import { responderOk } from '../http-response.js';
 import {
@@ -37,7 +38,10 @@ const datosSesion = (resultado: ResultadoSesion): object => ({
   usuario: resultado.usuario,
 });
 
-export const crearAuthController = (service: AuthService): Record<string, RequestHandler> => ({
+export const crearAuthController = (
+  service: AuthService,
+  pinService: PinService,
+): Record<string, RequestHandler> => ({
   registro: async (req, res) => {
     const body: unknown = req.body;
     const resultado = await service.registrar(registroSchema.parse(body));
@@ -104,5 +108,6 @@ export const crearAuthController = (service: AuthService): Record<string, Reques
   perfil: async (req, res) =>
     responderOk(res, 'Perfil consultado.', {
       usuario: await service.consultarPerfil(sesion(req).uuidUsuario),
+      pin_configurado: await pinService.estaConfigurado(sesion(req).uuidUsuario),
     }),
 });

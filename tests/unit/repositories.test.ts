@@ -258,3 +258,63 @@ describe('mapeo de las filas devueltas', () => {
     ).rejects.toThrow('No fue posible registrar la credencial de cliente.');
   });
 });
+
+interface PeticionFalsa {
+  input: () => PeticionFalsa;
+  query: () => Promise<{ recordset: unknown[] }>;
+}
+
+describe('filtro de alcances de la API Key', () => {
+  it('conserva todos los alcances validos, incluido el del pin', async () => {
+    const fila = {
+      uuid: 'uuid-clave',
+      key_hash: 'c'.repeat(64),
+      nombre: 'App movil',
+      tipo_cliente: 'mobile',
+      permisos:
+        'auth:register,auth:login,auth:confirm-email,auth:refresh,auth:logout,auth:pin,' +
+        'auth:password-reset,auth:me',
+      revocado: false,
+      fecha_creacion: new Date(),
+      fecha_modificacion: new Date(),
+      ultimo_uso: null,
+    };
+
+    const request = (): PeticionFalsa => ({
+      input: () => request(),
+      query: async () => ({ recordset: [fila] }),
+    });
+    const pool = { request } as unknown as Database;
+    const repo = createApiKeyRepository(pool);
+
+    const apiKey = await repo.findByHash('c'.repeat(64));
+
+    expect(apiKey?.permisos).toHaveLength(8);
+    expect(apiKey?.permisos).toContain('auth:pin');
+  });
+
+  it('descarta los alcances que no existen', async () => {
+    const fila = {
+      uuid: 'uuid-clave',
+      key_hash: 'c'.repeat(64),
+      nombre: 'App movil',
+      tipo_cliente: 'mobile',
+      permisos: 'auth:login,alcance-inexistente',
+      revocado: false,
+      fecha_creacion: new Date(),
+      fecha_modificacion: new Date(),
+      ultimo_uso: null,
+    };
+
+    const request = (): PeticionFalsa => ({
+      input: () => request(),
+      query: async () => ({ recordset: [fila] }),
+    });
+    const pool = { request } as unknown as Database;
+    const repo = createApiKeyRepository(pool);
+
+    const apiKey = await repo.findByHash('c'.repeat(64));
+
+    expect(apiKey?.permisos).toEqual(['auth:login']);
+  });
+});

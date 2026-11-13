@@ -127,6 +127,87 @@ sequenceDiagram
 
 La respuesta genérica corresponde a solicitudes válidas; una entrada inválida puede devolver `400 VALIDACION_FALLIDA`. La validación del enlace con `GET` es opcional y exige la API Key, igual que la confirmación: se aplica el mismo mecanismo de enlace de app y universal. Una contraseña actual incorrecta devuelve `400 PASSWORD_ACTUAL_INVALIDA`.
 
+## 5. Pin de acceso
+
+El pin es un candado **local** del dispositivo: la persona lo configura una vez, despues de iniciar
+sesion, y al reabrir la aplicacion la app pide solo el pin en lugar de las credenciales.
+
+**El pin nunca viaja al servidor.** Un pin de cuatro a seis digitos tiene muy poca entropia, y
+enviarlo en cada apertura lo exponeria a la red y a los intentos por fuerza bruta. Por eso:
+
+- La app guarda en el almacen seguro del dispositivo el **verificador** del pin (argon2id sobre el
+  pin, con sal aleatoria) y lo compara en el dispositivo cuando la persona lo escribe. Ese
+  verificador nunca se transmite.
+- El microservicio guarda **otro** verificador, tambien argon2id, y lo usa para tres cosas que no
+  requieren conocer el pin: permitir reconfigurarlo, permitir revocarlo desde otro dispositivo, y
+  usarlo como segunda confirmacion en operaciones sensibles.
+
+### Configuracion
+
+Para el usuario
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Persona as Persona
+    participant App as Aplicación móvil
+    participant Seguro as expo-secure-store
+    participant Backend as Backend
+    Persona->>App: Elegir un pin de 4 a 12 dígitos
+    App->>App: Derivar el verificador local del pin
+    App->>Seguro: Guardar el verificador local
+    App->>Backend: POST /auth/pin/configurar con X-API-Key, Bearer, pin y dispositivo
+    Backend->>Backend: Hashear el pin con argon2id y revocar el pin anterior
+    Backend->>App: 201, pin_configurado true
+    Note over App,Backend: El pin viaja una sola vez, al configurarlo
+```
+
+### Apertura de la aplicacion
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Persona as Persona
+    participant App as Aplicación móvil
+    participant Seguro as expo-secure-store
+    participant Backend as Backend
+    App->>Seguro: Leer el verificador local y los tokens
+    Seguro->>App: Verificador y refresh token disponibles
+    App->>Backend: POST /auth/refresh con X-API-Key y refresh_token
+    Backend->>App: 200, token de acceso nuevo
+    App->>Backend: GET /auth/me con X-API-Key y Bearer
+    Backend->>App: 200, usuario y pin_configurado
+    alt pin configurado
+        App->>Persona: Pedir el pin
+        Persona->>App: Escribir el pin
+        App->>App: Comparar con el verificador local
+        alt coincide
+            App->>Persona: Abrir la aplicación
+        else no coincide
+            App->>Persona: Repetir el pin
+        end
+    else sin pin configurado
+        App->>Persona: Abrir la aplicación con la sesión activa
+    end
+```
+
+La comparacion del pin ocurre **en el dispositivo**, sin red y sin limite de intentos del servidor.
+Si el pin no coincide, la app vuelve a pedirlo; el numero de intentos vive en el dispositivo.
+
+### Confirmacion en operaciones sensibles
+
+Cuando la app necesita una segunda confirmacion antes de una operacion que lo exige (cambiar la
+contrasena, ver datos personales, revocar sesiones de otros dispositivos), envia el pin al
+servidor con `POST /auth/pin/verificar`. Ahi si cuenta el servidor: tras cinco intentos
+fallidos el pin queda **revocado** y la cuenta sigue activa, porque el bloqueo de la cuenta es
+para el acceso con contrasena, no para el pin.
+
+### Revocacion
+
+`POST /auth/pin/revocar` revoca el pin de la cuenta. La app debe borrar el verificador local y
+pedir el pin de nuevo en la siguiente apertura. Sirve para el caso de un equipo extraviado o de
+sospecha de que alguien conoce el pin.
+
 ## Estados de la cuenta
 
 ```mermaid
@@ -144,20 +225,23 @@ stateDiagram-v2
 
 Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key` salvo el registro de instalación; solo `logout`, `change-password` y `me` exigen además Bearer. Los enlaces abiertos por navegador también necesitan la API Key mediante un cliente o intermediario autorizado.
 
-| Método | Ruta                      | Alcance               | Cuándo se invoca                          | Cuerpo o consulta                           | Respuesta resumida                              |
-| ------ | ------------------------- | --------------------- | ----------------------------------------- | ------------------------------------------- | ----------------------------------------------- |
-| POST   | `/installations/register` | Público               | Primer arranque o clave inválida/revocada | `nombre`, `tipo_cliente`                    | 201, `data.api_key` una sola vez.               |
-| POST   | `/auth/register`          | `auth:register`       | Crear cuenta                              | `email`, `password`, `tyc`                  | 201, `usuario` y `correo_confirmacion_enviado`. |
-| POST   | `/auth/login`             | `auth:login`          | Iniciar sesión                            | `email`, `password`                         | 200, tokens y usuario.                          |
-| POST   | `/auth/confirm-email`     | `auth:confirm-email`  | Confirmar correo desde la app             | `token`                                     | 200, usuario activo.                            |
-| GET    | `/auth/confirm-email`     | `auth:confirm-email`  | Abrir enlace de confirmación              | Consulta `token`                            | 200, usuario activo.                            |
-| POST   | `/auth/refresh`           | `auth:refresh`        | Renovar sesión                            | `refresh_token`                             | 200, tokens nuevos y usuario.                   |
-| POST   | `/auth/logout`            | `auth:logout`         | Cerrar sesión                             | Ninguno; Bearer                             | 200, sesión revocada.                           |
-| POST   | `/auth/forgot-password`   | `auth:password-reset` | Solicitar recuperación                    | `email`                                     | 200 genérico para solicitud válida.             |
-| POST   | `/auth/reset-password`    | `auth:password-reset` | Definir nueva contraseña con enlace       | `token`, `nueva_password`                   | 200, contraseña actualizada.                    |
-| GET    | `/auth/reset-password`    | `auth:password-reset` | Validar enlace antes del formulario       | Consulta `token`                            | 200, correo en `data`, sin cambiar contraseña.  |
-| POST   | `/auth/change-password`   | `auth:password-reset` | Cambiar contraseña con sesión abierta     | `password_actual`, `nueva_password`; Bearer | 200, contraseña actualizada.                    |
-| GET    | `/auth/me`                | `auth:me`             | Consultar perfil                          | Ninguno; Bearer                             | 200, `data.usuario` público.                    |
+| Método | Ruta                      | Alcance               | Cuándo se invoca                               | Cuerpo o consulta                           | Respuesta resumida                              |
+| ------ | ------------------------- | --------------------- | ---------------------------------------------- | ------------------------------------------- | ----------------------------------------------- |
+| POST   | `/installations/register` | Público               | Primer arranque o clave inválida/revocada      | `nombre`, `tipo_cliente`                    | 201, `data.api_key` una sola vez.               |
+| POST   | `/auth/register`          | `auth:register`       | Crear cuenta                                   | `email`, `password`, `tyc`                  | 201, `usuario` y `correo_confirmacion_enviado`. |
+| POST   | `/auth/login`             | `auth:login`          | Iniciar sesión                                 | `email`, `password`                         | 200, tokens y usuario.                          |
+| POST   | `/auth/confirm-email`     | `auth:confirm-email`  | Confirmar correo desde la app                  | `token`                                     | 200, usuario activo.                            |
+| GET    | `/auth/confirm-email`     | `auth:confirm-email`  | Abrir enlace de confirmación                   | Consulta `token`                            | 200, usuario activo.                            |
+| POST   | `/auth/refresh`           | `auth:refresh`        | Renovar sesión                                 | `refresh_token`                             | 200, tokens nuevos y usuario.                   |
+| POST   | `/auth/logout`            | `auth:logout`         | Cerrar sesión                                  | Ninguno; Bearer                             | 200, sesión revocada.                           |
+| POST   | `/auth/forgot-password`   | `auth:password-reset` | Solicitar recuperación                         | `email`                                     | 200 genérico para solicitud válida.             |
+| POST   | `/auth/reset-password`    | `auth:password-reset` | Definir nueva contraseña con enlace            | `token`, `nueva_password`                   | 200, contraseña actualizada.                    |
+| GET    | `/auth/reset-password`    | `auth:password-reset` | Validar enlace antes del formulario            | Consulta `token`                            | 200, correo en `data`, sin cambiar contraseña.  |
+| POST   | `/auth/change-password`   | `auth:password-reset` | Cambiar contraseña con sesión abierta          | `password_actual`, `nueva_password`; Bearer | 200, contraseña actualizada.                    |
+| GET    | `/auth/me`                | `auth:me`             | Consultar perfil                               | Ninguno; Bearer                             | 200, `data.usuario` público.                    |
+| POST   | `/auth/pin/configurar`    | `auth:pin`            | Configurar o cambiar el pin                    | `pin`, `dispositivo`                        | 201, `pin_configurado`.                         |
+| POST   | `/auth/pin/verificar`     | `auth:pin`            | Segunda confirmacion en una operacion sensible | `pin`                                       | 200, `verificado`.                              |
+| POST   | `/auth/pin/revocar`       | `auth:pin`            | Revocar el pin de la cuenta                    | Ninguno                                     | 200, `pin_revocado`.                            |
 
 Además, `GET /` y `GET /health` son diagnósticos públicos sin prefijo; no forman parte del flujo de negocio. El catálogo de negocio tiene 12 operaciones.
 
@@ -177,33 +261,37 @@ Los umbrales y la ventana son configurables; estos son los valores predeterminad
 
 Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado.
 
-| Código                     | HTTP      | Acción de la app                                                                       |
-| -------------------------- | --------- | -------------------------------------------------------------------------------------- |
-| `VALIDACION_FALLIDA`       | 400       | Mostrar los detalles y corregir la entrada.                                            |
-| `USUARIO_YA_EXISTE`        | 409       | Informar que el correo ya está registrado.                                             |
-| `CREDENCIALES_INVALIDAS`   | 401       | Solicitar corrección sin reintentos automáticos.                                       |
-| `PASSWORD_ACTUAL_INVALIDA` | 400       | Solicitar la contraseña actual correcta.                                               |
-| `TOKEN_INVALIDO`           | 400 o 401 | En enlaces, solicitar uno nuevo; en Bearer, comprobar expiración y renovar si procede. |
-| `TOKEN_REQUERIDO`          | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión.             |
-| `SESION_INVALIDA`          | 401       | Descartar los tokens y solicitar inicio de sesión.                                     |
-| `CUENTA_POR_CONFIRMAR`     | 403       | Indicar que debe confirmar el correo.                                                  |
-| `CUENTA_INACTIVA`          | 403       | Indicar que la cuenta está inactiva y solicitar soporte.                               |
-| `CUENTA_DESACTIVADA`       | 403       | Solicitar soporte para desbloqueo manual.                                              |
-| `CUENTA_NO_ACTIVA`         | 403       | En renovación, informar que la cuenta no está activa y solicitar soporte.              |
-| `CUENTA_YA_CONFIRMADA`     | 409       | Informar que la cuenta ya no está pendiente de confirmación.                           |
-| `USUARIO_NO_ENCONTRADO`    | 404       | Informar y solicitar soporte según el flujo.                                           |
-| `API_KEY_REQUERIDA`        | 401       | Comprobar y enviar la clave guardada; registrar instalación si falta.                  |
-| `API_KEY_INVALIDA`         | 401       | Borrar la clave y registrar la instalación de nuevo.                                   |
-| `API_KEY_REVOCADA`         | 401       | Borrar la clave y registrar la instalación de nuevo.                                   |
-| `API_KEY_SIN_PERMISO`      | 403       | Revisar tipo de cliente y alcance con backend.                                         |
-| `RATE_LIMIT_EXCEDIDO`      | 429       | Detener reintentos y solicitar que espere antes de volver a intentar.                  |
-| `ERROR_INTERNO`            | 500       | Informar del fallo y permitir reintentar más tarde.                                    |
+| Código                     | HTTP      | Acción de la app                                                                        |
+| -------------------------- | --------- | --------------------------------------------------------------------------------------- |
+| `VALIDACION_FALLIDA`       | 400       | Mostrar los detalles y corregir la entrada.                                             |
+| `USUARIO_YA_EXISTE`        | 409       | Informar que el correo ya está registrado.                                              |
+| `CREDENCIALES_INVALIDAS`   | 401       | Solicitar corrección sin reintentos automáticos.                                        |
+| `PASSWORD_ACTUAL_INVALIDA` | 400       | Solicitar la contraseña actual correcta.                                                |
+| `TOKEN_INVALIDO`           | 400 o 401 | En enlaces, solicitar uno nuevo; en Bearer, comprobar expiración y renovar si procede.  |
+| `TOKEN_REQUERIDO`          | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión.              |
+| `SESION_INVALIDA`          | 401       | Descartar los tokens y solicitar inicio de sesión.                                      |
+| `CUENTA_POR_CONFIRMAR`     | 403       | Indicar que debe confirmar el correo.                                                   |
+| `CUENTA_INACTIVA`          | 403       | Indicar que la cuenta está inactiva y solicitar soporte.                                |
+| `CUENTA_DESACTIVADA`       | 403       | Solicitar soporte para desbloqueo manual.                                               |
+| `CUENTA_NO_ACTIVA`         | 403       | En renovación, informar que la cuenta no está activa y solicitar soporte.               |
+| `CUENTA_YA_CONFIRMADA`     | 409       | Informar que la cuenta ya no está pendiente de confirmación.                            |
+| `USUARIO_NO_ENCONTRADO`    | 404       | Informar y solicitar soporte según el flujo.                                            |
+| `API_KEY_REQUERIDA`        | 401       | Comprobar y enviar la clave guardada; registrar instalación si falta.                   |
+| `API_KEY_INVALIDA`         | 401       | Borrar la clave y registrar la instalación de nuevo.                                    |
+| `API_KEY_REVOCADA`         | 401       | Borrar la clave y registrar la instalación de nuevo.                                    |
+| `API_KEY_SIN_PERMISO`      | 403       | Revisar tipo de cliente y alcance con backend.                                          |
+| `RATE_LIMIT_EXCEDIDO`      | 429       | Detener reintentos y solicitar que espere antes de volver a intentar.                   |
+| `ERROR_INTERNO`            | 500       | Informar del fallo y permitir reintentar más tarde.                                     |
+| `PIN_INVALIDO`             | 401       | El pin de acceso no es correcto.                                                        |
+| `PIN_REVOCADO`             | 403       | El pin se revoco por intentos fallidos; hay que volver a iniciar sesion y configurarlo. |
+| `PIN_NO_CONFIGURADO`       | 404       | La cuenta no tiene ningun pin de acceso configurado.                                    |
 
 ## Reglas para la app móvil
 
 - Guarde API Key, acceso y refresh únicamente en `expo-secure-store` (Keystore en Android y Keychain en iOS), nunca en `AsyncStorage` ni en el estado de la interfaz. No registre credenciales en logs.
 - No coloque credenciales en `EXPO_PUBLIC_*`: Expo las incluye en el binario distribuido y pueden leerse. La identidad de cliente se resuelve mediante la API Key por instalación.
 - Use HTTPS con TLS 1.2 o superior. Envíe la clave de instalación en cada ruta protegida y Bearer solo donde se exige.
+- El pin se compara **en el dispositivo** contra el verificador local guardado en `expo-secure-store`. No lo envie al servidor para desbloquear la aplicacion: solo se envia cuando la app necesita una segunda confirmacion en una operacion sensible.
 - Renueve preventivamente antes de que venza el acceso, según `expires_in`; el margen concreto no está definido. Evite renovaciones simultáneas para no competir por el mismo refresh rotativo. Guarde el nuevo refresh y descarte el anterior inmediatamente.
 - Un `401 TOKEN_INVALIDO` en una ruta con Bearer puede indicar acceso vencido, pero no garantiza esa causa. Compruebe la vigencia y renueve si corresponde; no interprete un fallo de API Key como fallo de usuario. Un `401 SESION_INVALIDA` de `/auth/refresh` indica refresh inválido, revocado o vencido: descarte ambos tokens y solicite inicio de sesión.
 - La API Key identifica a la instalación; el acceso identifica a la persona. No sustituya uno por otro. Los tokens de correo son de un solo uso y no son tokens de acceso.

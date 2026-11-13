@@ -9,6 +9,7 @@ import type { Express } from 'express';
 import type { AppConfig } from './config/env.js';
 import type { AuthService } from './domain/auth-service.js';
 import type { ApiKeyService } from './domain/api-key-service.js';
+import type { PinService } from './domain/pin-service.js';
 import type { TokenService } from './domain/token-service.js';
 import type { Logger } from './shared/logger.js';
 import './types/express.js';
@@ -26,6 +27,7 @@ export interface AppDeps {
   authService: AuthService;
   apiKeyService: ApiKeyService;
   tokenService: TokenService;
+  pinService: PinService;
 }
 
 export const createApp = (deps: AppDeps): Express => {

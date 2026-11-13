@@ -10,6 +10,7 @@ import type { Express } from 'express';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
+import { createPinService } from '../../src/domain/pin-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
 import { createMailService } from '../../src/domain/mail-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
@@ -29,6 +30,7 @@ const construirApp = (): Express => {
     logger,
     tokenService: tokens,
     apiKeyService: createApiKeyService(banco.apiKeys),
+    pinService: createPinService({ pines: banco.pines, hasher: createPasswordHasher() }),
     authService: createAuthService({
       usuarios: banco.usuarios,
       sesiones: banco.sesiones,

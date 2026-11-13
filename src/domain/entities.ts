@@ -18,6 +18,7 @@ export const PERMISOS = {
   authConfirmEmail: 'auth:confirm-email',
   authRefresh: 'auth:refresh',
   authLogout: 'auth:logout',
+  authPin: 'auth:pin',
   authPasswordReset: 'auth:password-reset',
   authMe: 'auth:me',
 } as const;
@@ -67,6 +68,24 @@ export interface ApiKey {
   nombre: string;
   tipoCliente: TipoCliente;
   permisos: Permiso[];
+  revocado: boolean;
+  fechaCreacion: Date;
+  fechaModificacion: Date;
+  ultimoUso: Date | null;
+}
+
+/**
+ * Pin de acceso configurado por la persona.
+ *
+ * El pin se compara en el dispositivo; aqui solo se guarda su verificador para poder revocarlo y
+ * para usarlo como segundo factor en operaciones sensibles.
+ */
+export interface PinAcceso {
+  uuid: string;
+  uuidUsuario: string;
+  dispositivo: string;
+  hash: string;
+  intentosFallidos: number;
   revocado: boolean;
   fechaCreacion: Date;
   fechaModificacion: Date;

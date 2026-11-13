@@ -27,6 +27,7 @@ import {
   tokenSchema,
 } from './validators/auth.validators.js';
 import { instalacionSchema } from './validators/installation.validators.js';
+import { pinConfiguracionSchema, pinVerificacionSchema } from './validators/pin.validators.js';
 
 /** Prefijo de las rutas de la API, igual al que usa el enrutador en tiempo de ejecucion. */
 const prefijo = (config: AppConfig): string => `/backend/${config.ambiente}/v${config.apiVersion}`;
@@ -226,6 +227,21 @@ const ERRORES = {
     codigo: 'RATE_LIMIT_EXCEDIDO',
     status: '429',
     descripcion: 'Se supero el limite de solicitudes permitidas.',
+  },
+  pinInvalido: {
+    codigo: 'PIN_INVALIDO',
+    status: '401',
+    descripcion: 'El pin de acceso no es correcto.',
+  },
+  pinRevocado: {
+    codigo: 'PIN_REVOCADO',
+    status: '403',
+    descripcion: 'El pin se revoco por intentos fallidos.',
+  },
+  pinNoConfigurado: {
+    codigo: 'PIN_NO_CONFIGURADO',
+    status: '404',
+    descripcion: 'La cuenta no tiene ningun pin de acceso configurado.',
   },
 } as const;
 
@@ -664,11 +680,98 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
           },
         },
       },
+      [`${raiz}/auth/pin/configurar`]: {
+        post: {
+          tags: ['Autenticacion'],
+          summary: 'Configura el pin de acceso',
+          description:
+            'Configura o cambia el pin de acceso de la cuenta y revoca el anterior. El pin se ' +
+            'guarda cifrado con argon2id y no se vuelve a mostrar. El cliente debe conservar su ' +
+            'propio verificador local, porque el pin se compara en el dispositivo y no viaja al ' +
+            'servidor en cada apertura de la aplicacion.',
+          security: seguridadApiKeyYUsuario,
+          requestBody: cuerpoDePeticion(pinConfiguracionSchema),
+          responses: {
+            '201': {
+              description: 'Pin de acceso configurado.',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.validacion,
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+              ERRORES.apiKeySinPermiso,
+              ERRORES.tokenRequerido,
+              ERRORES.usuarioNoEncontrado,
+            ),
+          },
+        },
+      },
+      [`${raiz}/auth/pin/verificar`]: {
+        post: {
+          tags: ['Autenticacion'],
+          summary: 'Verifica el pin de acceso',
+          description:
+            'Verifica el pin de la cuenta y sirve como segunda confirmacion en las operaciones ' +
+            'sensibles. Tras cinco intentos fallidos el pin queda revocado y la cuenta sigue ' +
+            'activa, porque el bloqueo de la cuenta protege el acceso con contrasena.',
+          security: seguridadApiKeyYUsuario,
+          requestBody: cuerpoDePeticion(pinVerificacionSchema),
+          responses: {
+            '200': {
+              description: 'Pin verificado.',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.validacion,
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+              ERRORES.apiKeySinPermiso,
+              ERRORES.tokenRequerido,
+              ERRORES.pinInvalido,
+              ERRORES.pinRevocado,
+              ERRORES.pinNoConfigurado,
+              ERRORES.rateLimit,
+            ),
+          },
+        },
+      },
+      [`${raiz}/auth/pin/revocar`]: {
+        post: {
+          tags: ['Autenticacion'],
+          summary: 'Revoca el pin de acceso',
+          description:
+            'Revoca el pin de la cuenta. El cliente debe borrar el verificador que guarda en el ' +
+            'dispositivo y volver a pedir el pin en la siguiente apertura.',
+          security: seguridadApiKeyYUsuario,
+          responses: {
+            '200': {
+              description: 'Pin de acceso revocado.',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+              ERRORES.apiKeySinPermiso,
+              ERRORES.tokenRequerido,
+              ERRORES.usuarioNoEncontrado,
+            ),
+          },
+        },
+      },
       [`${raiz}/auth/me`]: {
         get: {
           tags: ['Autenticacion'],
           summary: 'Consulta los datos de la cuenta',
-          description: 'Devuelve la informacion publica del usuario autenticado.',
+          description:
+            'Devuelve la informacion publica del usuario autenticado y si la cuenta tiene ' +
+            'un pin de acceso configurado.',
           security: seguridadApiKeyYUsuario,
           responses: {
             '200': {

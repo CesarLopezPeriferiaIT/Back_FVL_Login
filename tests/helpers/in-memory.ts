@@ -8,9 +8,17 @@
  * @version 1.0.0
  */
 import { randomUUID } from 'node:crypto';
-import type { ApiKey, EstadoUsuario, LogSession, Usuario } from '../../src/domain/entities.js';
+import type {
+  ApiKey,
+  EstadoUsuario,
+  LogSession,
+  PinAcceso,
+  Usuario,
+} from '../../src/domain/entities.js';
 import type {
   ApiKeyRepository,
+  NuevoPin,
+  PinRepository,
   LogSessionRepository,
   MailSender,
   MensajeCorreo,
@@ -24,6 +32,7 @@ export interface EstadoBanco {
   usuarios: Usuario[];
   sesiones: LogSession[];
   apiKeys: ApiKey[];
+  pines: PinAcceso[];
   correos: MensajeCorreo[];
 }
 
@@ -32,6 +41,7 @@ export interface BancoEnMemoria {
   usuarios: UsuarioRepository;
   sesiones: LogSessionRepository;
   apiKeys: ApiKeyRepository;
+  pines: PinRepository;
   correo: MailSender;
   estado: EstadoBanco;
 }
@@ -40,7 +50,7 @@ export interface BancoEnMemoria {
  * Crea un banco en memoria con los repositorios vacios.
  */
 export const crearBancoEnMemoria = (): BancoEnMemoria => {
-  const estado: EstadoBanco = { usuarios: [], sesiones: [], apiKeys: [], correos: [] };
+  const estado: EstadoBanco = { usuarios: [], sesiones: [], apiKeys: [], pines: [], correos: [] };
 
   const usuarios: UsuarioRepository = {
     findByEmail: async (email: string) =>
@@ -187,7 +197,50 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
     },
   };
 
-  return { usuarios, sesiones, apiKeys, correo, estado };
+  const pines: PinRepository = {
+    buscarActivo: async (uuidUsuario) =>
+      estado.pines.find((pin) => pin.uuidUsuario === uuidUsuario && !pin.revocado) ?? null,
+    crear: async (pin: NuevoPin) => {
+      const nuevo: PinAcceso = {
+        uuid: pin.uuid,
+        uuidUsuario: pin.uuidUsuario,
+        dispositivo: pin.dispositivo,
+        hash: pin.hash,
+        intentosFallidos: 0,
+        revocado: false,
+        fechaCreacion: new Date(),
+        fechaModificacion: new Date(),
+        ultimoUso: null,
+      };
+      estado.pines.push(nuevo);
+      return nuevo;
+    },
+    registrarIntentoFallido: async (uuid) => {
+      const pin = estado.pines.find((item) => item.uuid === uuid);
+      if (pin) {
+        pin.intentosFallidos += 1;
+        pin.fechaModificacion = new Date();
+      }
+    },
+    registrarUso: async (uuid) => {
+      const pin = estado.pines.find((item) => item.uuid === uuid);
+      if (pin) {
+        pin.intentosFallidos = 0;
+        pin.ultimoUso = new Date();
+        pin.fechaModificacion = new Date();
+      }
+    },
+    revocarActivos: async (uuidUsuario) => {
+      estado.pines
+        .filter((pin) => pin.uuidUsuario === uuidUsuario && !pin.revocado)
+        .forEach((pin) => {
+          pin.revocado = true;
+          pin.fechaModificacion = new Date();
+        });
+    },
+  };
+
+  return { usuarios, sesiones, apiKeys, pines, correo, estado };
 };
 
 /**
