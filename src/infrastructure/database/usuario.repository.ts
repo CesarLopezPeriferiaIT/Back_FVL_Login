@@ -13,7 +13,6 @@ import type { Database } from './pool.js';
 interface UsuarioRow {
   uuid: string;
   Email: string;
-  pass_hash: string;
   estado: string;
   fecha_creacion: Date;
   fecha_modificacion: Date;
@@ -21,13 +20,14 @@ interface UsuarioRow {
 }
 
 const SELECT_USUARIO = `
-  SELECT uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc
+  SELECT uuid, Email, estado, fecha_creacion, fecha_modificacion, tyc
   FROM dbo.usuario`;
 
 const toUsuario = (row: UsuarioRow): Usuario => ({
   uuid: row.uuid,
   email: row.Email,
-  passHash: row.pass_hash,
+  // La columna pass_hash ya no existe: las cuentas se crean solo con el correo.
+  passHash: '',
   estado: row.estado.trim() as EstadoUsuario,
   fechaCreacion: row.fecha_creacion,
   fechaModificacion: row.fecha_modificacion,
@@ -63,18 +63,17 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
       .request()
       .input('uuid', sql.UniqueIdentifier, nuevoUsuario.uuid)
       .input('email', sql.NVarChar(256), nuevoUsuario.email)
-      .input('passHash', sql.NVarChar(512), nuevoUsuario.passHash)
       .input('estado', sql.Char(1), nuevoUsuario.estado)
       .input('tyc', sql.Bit, nuevoUsuario.tyc)
       .input('codigoDepartamento', sql.VarChar(2), nuevoUsuario.codigoDepartamento)
       .input('codigoMunicipio', sql.VarChar(5), nuevoUsuario.codigoMunicipio)
       .input('codigoRol', sql.Int, nuevoUsuario.codigoRol)
       .query<IRecordSet<UsuarioRow>>(
-        `INSERT INTO dbo.usuario (uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc,
+        `INSERT INTO dbo.usuario (uuid, Email, estado, fecha_creacion, fecha_modificacion, tyc,
                                   codigo_departamento, codigo_municipio, codigo_rol)
-         OUTPUT INSERTED.uuid, INSERTED.Email, INSERTED.pass_hash, INSERTED.estado,
+         OUTPUT INSERTED.uuid, INSERTED.Email, INSERTED.estado,
                 INSERTED.fecha_creacion, INSERTED.fecha_modificacion, INSERTED.tyc
-         VALUES (@uuid, @email, @passHash, @estado, SYSUTCDATETIME(), SYSUTCDATETIME(), @tyc,
+         VALUES (@uuid, @email, @estado, SYSUTCDATETIME(), SYSUTCDATETIME(), @tyc,
                  @codigoDepartamento, @codigoMunicipio, @codigoRol)`,
       );
 

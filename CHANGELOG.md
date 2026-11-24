@@ -19,6 +19,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 ### Eliminado
 
+-La contraseña del registro: `POST /auth/register` ya no la recibe y la columna `pass_hash` se elimina de `usuario` (`db/init/05-usuario-sin-password.sql`). El login no se modificó: sin la columna, valida contra un hash vacío y responde `CREDENCIALES_INVALIDAS` hasta que se defina el inicio de sesión por OTP.
 -El token JWT de confirmación y las variables `JWT_CONFIRM_SECRET` y `JWT_CONFIRM_TTL`.
 -Endpoints de contraseña `forgot-password`, `reset-password` (GET y POST) y `change-password`, con su lógica de servicio, token de reseteo, plantilla de correo y variables `JWT_RESET_SECRET` y `JWT_RESET_TTL`.
 -Endpoints de pin de acceso `/auth/pin/configurar`, `/auth/pin/verificar` y `/auth/pin/revocar`, con su servicio, repositorio, validadores y el script `db/init/02-pin-acceso.sql`. `/auth/me` ya no devuelve `pin_configurado`.

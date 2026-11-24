@@ -40,7 +40,6 @@ export interface ResultadoSesion {
 /** Datos que la persona entrega al crear su cuenta. */
 export interface DatosRegistro {
   email: string;
-  password: string;
   tyc: boolean;
   codigoDepartamento: string;
   codigoMunicipio: string;
@@ -131,7 +130,6 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
   return {
     registrar: async ({
       email,
-      password,
       tyc,
       codigoDepartamento,
       codigoMunicipio,
@@ -144,14 +142,11 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
         throw new AppError('USUARIO_YA_EXISTE', 'El correo ya se encuentra registrado.', 409);
       }
 
-      const passHash = await hasher.hash(password);
-
       let usuario: Usuario;
       try {
         usuario = await usuarios.create({
           uuid: randomUUID(),
           email: correoNormalizado,
-          passHash,
           estado: 'C',
           tyc,
           codigoDepartamento,

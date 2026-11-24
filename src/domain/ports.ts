@@ -46,7 +46,6 @@ export interface UsuarioRepository {
 export interface NuevoUsuario {
   uuid: string;
   email: string;
-  passHash: string;
   estado: EstadoUsuario;
   tyc: boolean;
   codigoDepartamento: string;

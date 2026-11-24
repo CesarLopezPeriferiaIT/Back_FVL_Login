@@ -34,7 +34,6 @@ export const crearAuthController = (service: AuthService): Record<string, Reques
     const datos = registroSchema.parse(body);
     const resultado = await service.registrar({
       email: datos.email,
-      password: datos.password,
       tyc: datos.tyc,
       codigoDepartamento: datos.codigo_departamento,
       codigoMunicipio: datos.codigo_municipio,

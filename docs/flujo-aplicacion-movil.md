@@ -35,7 +35,7 @@ Si la clave es inválida o revocada, elimínela del almacén seguro y registre n
 
 ## 2. Registro y confirmación de correo
 
-La contraseña tiene entre 8 y 72 caracteres, al menos una letra ASCII y un dígito, y no admite espacios en blanco. La cuenta siempre se crea en `C`. El departamento, el municipio y el rol son obligatorios: la app los toma de `GET /catalog/get-departments`, `get-municipalities?department=NN` y `get-roles`, y el municipio debe pertenecer al departamento elegido. Un código que no existe responde `400 CATALOGO_INVALIDO`.
+El registro solo pide el correo: no se envía contraseña. La cuenta siempre se crea en `C`. El departamento, el municipio y el rol son obligatorios: la app los toma de `GET /catalog/get-departments`, `get-municipalities?department=NN` y `get-roles`, y el municipio debe pertenecer al departamento elegido. Un código que no existe responde `400 CATALOGO_INVALIDO`.
 
 ```mermaid
 sequenceDiagram
@@ -44,8 +44,8 @@ sequenceDiagram
     participant App as Aplicación móvil
     participant Backend as Backend
     participant Correo as Servidor de correo
-    Persona->>App: Introducir correo, contraseña, departamento, municipio, rol y aceptación de términos
-    App->>Backend: POST /auth/register con X-API-Key, email, password, tyc, codigo_departamento, codigo_municipio y codigo_rol
+    Persona->>App: Introducir correo, departamento, municipio, rol y aceptación de términos
+    App->>Backend: POST /auth/register con X-API-Key, email, tyc, codigo_departamento, codigo_municipio y codigo_rol
     alt tyc es true
         Backend->>Correo: Enviar código de confirmación de seis dígitos
         Backend->>App: 201, usuario en C y correo_confirmacion_enviado true
@@ -111,18 +111,18 @@ stateDiagram-v2
 
 Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key` salvo el registro de instalación; solo `logout` y `me` exigen además Bearer. La confirmación por enlace ya no existe.
 
-| Método | Ruta                          | Alcance              | Cuándo se invoca                          | Cuerpo o consulta                                                                   | Respuesta resumida                                                    |
-| ------ | ----------------------------- | -------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| POST   | `/installations/register`     | Público              | Primer arranque o clave inválida/revocada | `nombre`, `tipo_cliente`                                                            | 201, `data.api_key` una sola vez.                                     |
-| POST   | `/auth/register`              | `auth:register`      | Crear cuenta                              | `email`, `password`, `tyc`, `codigo_departamento`, `codigo_municipio`, `codigo_rol` | 201, `usuario` y `correo_confirmacion_enviado`.                       |
-| POST   | `/auth/login`                 | `auth:login`         | Iniciar sesión                            | `email`, `password`                                                                 | 200, tokens y usuario.                                                |
-| POST   | `/auth/confirm-email`         | `auth:confirm-email` | Confirmar correo desde la app             | `email`, `codigo`                                                                   | 200, usuario activo.                                                  |
-| POST   | `/auth/refresh`               | `auth:refresh`       | Renovar sesión                            | `refresh_token`                                                                     | 200, tokens nuevos y usuario.                                         |
-| POST   | `/auth/logout`                | `auth:logout`        | Cerrar sesión                             | Ninguno; Bearer                                                                     | 200, sesión revocada.                                                 |
-| GET    | `/auth/me`                    | `auth:me`            | Consultar perfil                          | Ninguno; Bearer                                                                     | 200, `data.usuario` público.                                          |
-| GET    | `/catalog/get-roles`          | `catalog:read`       | Llenar el selector de rol en el registro  | Ninguno; sin Bearer                                                                 | 200, `data.roles` con `codigo`, `nombre`, `area_servicio`.            |
-| GET    | `/catalog/get-departments`    | `catalog:read`       | Llenar el selector de departamento        | Ninguno; sin Bearer                                                                 | 200, `data.departamentos` con `codigo` y `nombre`.                    |
-| GET    | `/catalog/get-municipalities` | `catalog:read`       | Llenar el selector de municipio           | Consulta opcional `department` (2 dígitos); sin Bearer                              | 200, `data.municipios` con `codigo`, `nombre`, `codigo_departamento`. |
+| Método | Ruta                          | Alcance              | Cuándo se invoca                          | Cuerpo o consulta                                                       | Respuesta resumida                                                    |
+| ------ | ----------------------------- | -------------------- | ----------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| POST   | `/installations/register`     | Público              | Primer arranque o clave inválida/revocada | `nombre`, `tipo_cliente`                                                | 201, `data.api_key` una sola vez.                                     |
+| POST   | `/auth/register`              | `auth:register`      | Crear cuenta                              | `email`, `tyc`, `codigo_departamento`, `codigo_municipio`, `codigo_rol` | 201, `usuario` y `correo_confirmacion_enviado`.                       |
+| POST   | `/auth/login`                 | `auth:login`         | Iniciar sesión                            | `email`, `password`                                                     | 200, tokens y usuario.                                                |
+| POST   | `/auth/confirm-email`         | `auth:confirm-email` | Confirmar correo desde la app             | `email`, `codigo`                                                       | 200, usuario activo.                                                  |
+| POST   | `/auth/refresh`               | `auth:refresh`       | Renovar sesión                            | `refresh_token`                                                         | 200, tokens nuevos y usuario.                                         |
+| POST   | `/auth/logout`                | `auth:logout`        | Cerrar sesión                             | Ninguno; Bearer                                                         | 200, sesión revocada.                                                 |
+| GET    | `/auth/me`                    | `auth:me`            | Consultar perfil                          | Ninguno; Bearer                                                         | 200, `data.usuario` público.                                          |
+| GET    | `/catalog/get-roles`          | `catalog:read`       | Llenar el selector de rol en el registro  | Ninguno; sin Bearer                                                     | 200, `data.roles` con `codigo`, `nombre`, `area_servicio`.            |
+| GET    | `/catalog/get-departments`    | `catalog:read`       | Llenar el selector de departamento        | Ninguno; sin Bearer                                                     | 200, `data.departamentos` con `codigo` y `nombre`.                    |
+| GET    | `/catalog/get-municipalities` | `catalog:read`       | Llenar el selector de municipio           | Consulta opcional `department` (2 dígitos); sin Bearer                  | 200, `data.municipios` con `codigo`, `nombre`, `codigo_departamento`. |
 
 Además, `GET /` y `GET /health` son diagnósticos públicos sin prefijo; no forman parte del flujo de negocio. El catálogo de negocio tiene 11 operaciones.
 

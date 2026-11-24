@@ -17,7 +17,6 @@ BEGIN
     CREATE TABLE dbo.usuario (
         uuid               UNIQUEIDENTIFIER NOT NULL,
         Email              NVARCHAR(256)    NOT NULL,
-        pass_hash          NVARCHAR(512)    NOT NULL,
         estado             CHAR(1)          NOT NULL CONSTRAINT DF_usuario_estado DEFAULT 'C',
         fecha_creacion     DATETIME2(3)     NOT NULL CONSTRAINT DF_usuario_fecha_creacion DEFAULT SYSUTCDATETIME(),
         fecha_modificacion DATETIME2(3)     NOT NULL CONSTRAINT DF_usuario_fecha_modificacion DEFAULT SYSUTCDATETIME(),

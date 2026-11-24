@@ -76,7 +76,6 @@ describe('confirmacion con codigo', () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
       email: 'vence@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -164,7 +163,6 @@ describe('confirmacion con codigo', () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
       email: 'carrera@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -232,7 +230,6 @@ describe('registro de cuenta', () => {
 
     const resultado = await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -250,7 +247,6 @@ describe('registro de cuenta', () => {
 
     const resultado = await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: false,
       ...UBICACION,
     });
@@ -266,28 +262,11 @@ describe('registro de cuenta', () => {
 
     await authService.registrar({
       email: '  Nuevo@Ejemplo.CO ',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
 
     expect(banco.estado.usuarios[0]?.email).toBe('nuevo@ejemplo.co');
-  });
-
-  it('almacena la contrasena cifrada y nunca en texto plano', async () => {
-    const { banco, authService } = crearServicio();
-
-    await authService.registrar({
-      email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
-      tyc: true,
-      ...UBICACION,
-    });
-
-    expect(banco.estado.usuarios[0]?.passHash).not.toBe(PASSWORD);
-    await expect(hasher.verify(banco.estado.usuarios[0]?.passHash ?? '', PASSWORD)).resolves.toBe(
-      true,
-    );
   });
 
   it('rechaza un codigo de catalogo inexistente', async () => {
@@ -299,7 +278,6 @@ describe('registro de cuenta', () => {
     await expect(
       authService.registrar({
         email: 'nuevo@ejemplo.co',
-        password: PASSWORD,
         tyc: true,
         ...UBICACION,
       }),
@@ -311,7 +289,6 @@ describe('registro de cuenta', () => {
 
     await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -319,7 +296,6 @@ describe('registro de cuenta', () => {
     await expect(
       authService.registrar({
         email: 'nuevo@ejemplo.co',
-        password: PASSWORD,
         tyc: true,
         ...UBICACION,
       }),
@@ -332,7 +308,6 @@ describe('confirmacion de correo', () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -348,7 +323,6 @@ describe('confirmacion de correo', () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -367,7 +341,6 @@ describe('confirmacion de correo', () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
@@ -387,7 +360,6 @@ describe('confirmacion de correo', () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
       email: 'nuevo@ejemplo.co',
-      password: PASSWORD,
       tyc: true,
       ...UBICACION,
     });
