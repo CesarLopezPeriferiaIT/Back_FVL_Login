@@ -70,6 +70,7 @@ describe('documentacion de la API', () => {
     const paths = documento['paths'] as Record<string, unknown>;
 
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/login');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/login/code');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/register');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/me');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/installations/register');
@@ -161,6 +162,51 @@ describe('documentacion de la API', () => {
       }
     }
     expect(cantidad).toBeGreaterThan(0);
+  });
+
+  it('documenta los dos pasos de acceso con ejemplos y respuestas', async () => {
+    const documento = await documentoDePrueba();
+    const paths = documento['paths'] as Record<string, Record<string, Record<string, unknown>>>;
+    for (const [ruta, campos] of [
+      ['/backend/dev/v1/auth/login', ['email']],
+      ['/backend/dev/v1/auth/login/code', ['codigo', 'email']],
+    ] as const) {
+      const operacion = paths[ruta]?.['post'];
+      expect(operacion?.['security']).toEqual([{ ApiKey: [] }]);
+      const cuerpo = operacion?.['requestBody'] as {
+        content: Record<
+          string,
+          { example: Record<string, unknown>; schema: { properties: Record<string, unknown> } }
+        >;
+      };
+      const contenido = cuerpo.content['application/json'];
+      expect(Object.keys(contenido!.example).sort()).toEqual(campos);
+      expect(Object.keys(contenido!.schema.properties).sort()).toEqual(campos);
+      const respuestas = operacion?.['responses'] as Record<
+        string,
+        { description: string; content: Record<string, { schema: unknown }> }
+      >;
+      expect(respuestas['200']).toBeDefined();
+      expect(respuestas['403']?.description).toContain('CUENTA_POR_CONFIRMAR');
+      expect(respuestas['403']?.description).toContain('CUENTA_INACTIVA');
+      expect(respuestas['403']?.description).toContain('CUENTA_DESACTIVADA');
+      expect(respuestas['429']?.description).toContain('RATE_LIMIT_EXCEDIDO');
+      if (ruta.endsWith('/code')) {
+        expect(respuestas['200']?.content['application/json']?.schema).toEqual({
+          $ref: '#/components/schemas/RespuestaSesion',
+        });
+        for (const codigo of [
+          'CODIGO_ACCESO_NO_EXISTE',
+          'CODIGO_ACCESO_VENCIDO',
+          'CODIGO_ACCESO_INVALIDO',
+          'CODIGO_ACCESO_INVALIDADO',
+        ])
+          expect(respuestas['401']?.description).toContain(codigo);
+      } else {
+        expect(JSON.stringify(respuestas['200'])).toContain('correo_enviado');
+      }
+    }
+    expect(JSON.stringify(documento)).not.toContain('CREDENCIALES_INVALIDAS');
   });
 
   it('documenta los codigos de error con su estado HTTP', async () => {

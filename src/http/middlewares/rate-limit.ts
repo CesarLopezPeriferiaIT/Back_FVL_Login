@@ -18,6 +18,8 @@ export const crearLimitadores = (
   registroIp: RequestHandler;
   confirmacionIdentificador: RequestHandler;
   confirmacionIp: RequestHandler;
+  codigoIdentificador: RequestHandler;
+  codigoIp: RequestHandler;
 } => {
   const base = {
     windowMs: config.rateLimit.windowMinutes * 60_000,
@@ -43,6 +45,22 @@ export const crearLimitadores = (
         return ip(req);
       },
     }),
+    codigoIdentificador: rateLimit({
+      ...base,
+      limit: config.rateLimit.loginCodePerIdentifier,
+      keyGenerator: (req) => {
+        const body: unknown = req.body;
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'email' in body &&
+          typeof body.email === 'string'
+        )
+          return normalizarEmail(body.email);
+        return ip(req);
+      },
+    }),
+    codigoIp: rateLimit({ ...base, limit: config.rateLimit.loginCodePerIp, keyGenerator: ip }),
     confirmacionIdentificador: rateLimit({
       ...base,
       limit: config.rateLimit.confirmPerIdentifier,

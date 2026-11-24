@@ -11,6 +11,7 @@ import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
 import { createCodigoConfirmacionService } from '../../src/domain/codigo-confirmacion-service.js';
+import { createCodigoLoginService } from '../../src/domain/codigo-login-service.js';
 import { PERMISOS } from '../../src/domain/entities.js';
 import { createMailService } from '../../src/domain/mail-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
@@ -42,6 +43,13 @@ const app = createApp({
     hasher,
     codigos: createCodigoConfirmacionService({
       codigos: banco.codigos,
+      usuarios: banco.usuarios,
+      hasher,
+      config,
+      logger,
+    }),
+    codigosAcceso: createCodigoLoginService({
+      codigos: banco.codigosLogin,
       usuarios: banco.usuarios,
       hasher,
       config,
@@ -199,27 +207,55 @@ describe('API HTTP', () => {
     expect(registro.usadoEn).toBeNull();
   });
 
-  it('rechaza credenciales incorrectas y cuentas no activas', async () => {
-    await request(app)
+  it('solicita codigo de acceso', async () => {
+    const respuesta = await request(app)
       .post(`${base}/auth/login`)
       .set('X-API-Key', clave)
-      .send({ email: 'a@ejemplo.co', password: 'Incorrecta1' })
+      .send({ email: 'a@ejemplo.co' })
+      .expect(200);
+    expect(respuesta.body as unknown).toMatchObject({ data: { correo_enviado: true } });
+    expect(codigoCorreo()).toMatch(/^\d{6}$/);
+  });
+
+  it('rechaza codigo incorrecto y cuentas no activas', async () => {
+    const codigo = codigoCorreo();
+    const incorrecto = codigo === '000000' ? '000001' : '000000';
+    const respuesta = await request(app)
+      .post(`${base}/auth/login/code`)
+      .set('X-API-Key', clave)
+      .send({ email: 'a@ejemplo.co', codigo: incorrecto })
       .expect(401);
-    for (const estado of ['c', 'i', 'd']) {
-      await request(app)
+    expect(respuesta.body as unknown).toMatchObject({
+      error: { codigo: 'CODIGO_ACCESO_INVALIDO' },
+    });
+    for (const [estado, codigoError] of [
+      ['c', 'CUENTA_POR_CONFIRMAR'],
+      ['i', 'CUENTA_INACTIVA'],
+      ['d', 'CUENTA_DESACTIVADA'],
+    ]) {
+      const error = await request(app)
         .post(`${base}/auth/login`)
         .set('X-API-Key', clave)
-        .send({ email: `${estado}@ejemplo.co`, password })
+        .send({ email: `${estado}@ejemplo.co` })
         .expect(403);
+      expect(error.body as unknown).toMatchObject({ error: { codigo: codigoError } });
     }
   });
 
   it('renueva, consulta perfil y cierra sesion', async () => {
-    const login = await request(app)
+    await request(app)
       .post(`${base}/auth/login`)
       .set('X-API-Key', clave)
-      .send({ email: 'a@ejemplo.co', password })
+      .send({ email: 'a@ejemplo.co' })
       .expect(200);
+    const login = await request(app)
+      .post(`${base}/auth/login/code`)
+      .set('X-API-Key', clave)
+      .send({ email: 'a@ejemplo.co', codigo: codigoCorreo() })
+      .expect(200);
+    expect(login.body as unknown).toMatchObject({
+      data: { usuario: { email: 'a@ejemplo.co' }, token_type: 'Bearer' },
+    });
     const sesion = z
       .object({ data: z.object({ token_acceso: z.string(), token_refresh: z.string() }) })
       .parse(login.body as unknown);
@@ -396,18 +432,92 @@ describe('API HTTP', () => {
     expect(respuesta.body).toMatchObject({ error: { codigo: 'RATE_LIMIT_EXCEDIDO' } });
   });
 
+  it('desactiva la cuenta tras diez codigos incorrectos', async () => {
+    const email = 'bloqueo@ejemplo.co';
+    insertarUsuario(banco, { email, estado: 'A', passHash: await hasher.hash(password) });
+    await request(app)
+      .post(`${base}/auth/login`)
+      .set('X-API-Key', clave)
+      .send({ email })
+      .expect(200);
+    const codigo = codigoCorreo() === '000000' ? '000001' : '000000';
+    for (let i = 0; i < 10; i += 1) {
+      const respuesta = await request(app)
+        .post(`${base}/auth/login/code`)
+        .set('X-API-Key', clave)
+        .send({ email, codigo })
+        .expect(i === 9 ? 403 : 401);
+      if (i === 9)
+        expect(respuesta.body as unknown).toMatchObject({
+          error: { codigo: 'CUENTA_DESACTIVADA' },
+        });
+    }
+    expect(banco.estado.usuarios.find((u) => u.email === email)?.estado).toBe('D');
+  });
+
+  it.each([
+    ['identificador', 1, 30, 'limite@ejemplo.co', 'LIMITE@EJEMPLO.CO'],
+    ['IP', 10, 1, 'uno@ejemplo.co', 'dos@ejemplo.co'],
+  ])('limita solicitudes de codigo por %s', async (_nombre, porCorreo, porIp, primero, segundo) => {
+    const configLimite = {
+      ...config,
+      rateLimit: { ...config.rateLimit, loginCodePerIdentifier: porCorreo, loginCodePerIp: porIp },
+    };
+    const appLimite = createApp({
+      config: configLimite,
+      logger,
+      tokenService: tokens,
+      catalogoRepository: banco.catalogos,
+      apiKeyService: createApiKeyService(banco.apiKeys),
+      authService: createAuthService({
+        usuarios: banco.usuarios,
+        sesiones: banco.sesiones,
+        hasher,
+        tokens,
+        correo: createMailService(banco.correo),
+        codigos: createCodigoConfirmacionService({
+          codigos: banco.codigos,
+          usuarios: banco.usuarios,
+          hasher,
+          config: configLimite,
+          logger,
+        }),
+        codigosAcceso: createCodigoLoginService({
+          codigos: banco.codigosLogin,
+          usuarios: banco.usuarios,
+          hasher,
+          config: configLimite,
+          logger,
+        }),
+        config: configLimite,
+        logger,
+      }),
+    });
+    await request(appLimite)
+      .post(`${base}/auth/login`)
+      .set('X-API-Key', clave)
+      .send({ email: primero })
+      .expect(200);
+    const respuesta = await request(appLimite)
+      .post(`${base}/auth/login`)
+      .set('X-API-Key', clave)
+      .send({ email: segundo })
+      .expect(429);
+    expect(respuesta.body as unknown).toMatchObject({ error: { codigo: 'RATE_LIMIT_EXCEDIDO' } });
+  });
+
   it('limita por correo normalizado despues de diez intentos', async () => {
     for (let i = 0; i < 10; i += 1) {
       await request(app)
-        .post(`${base}/auth/login`)
+        .post(`${base}/auth/login/code`)
         .set('X-API-Key', clave)
-        .send({ email: 'limite@ejemplo.co', password })
+        .send({ email: 'limite@ejemplo.co', codigo: '123456' })
         .expect(401);
     }
     const respuesta = await request(app)
-      .post(`${base}/auth/login`)
+      .post(`${base}/auth/login/code`)
       .set('X-API-Key', clave)
-      .send({ email: 'LIMITE@EJEMPLO.CO', password })
+      .send({ email: 'LIMITE@EJEMPLO.CO', codigo: '123456' })
       .expect(429);
     expect(
       z.object({ error: z.object({ codigo: z.string() }) }).parse(respuesta.body as unknown).error

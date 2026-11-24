@@ -22,7 +22,20 @@ export const authRoutes = (deps: AppDeps): Router => {
   const bearer = exigirBearer(deps.tokenService);
   const limits = crearLimitadores(deps.config);
   router.post('/register', key(PERMISOS.authRegister), limits.registroIp, c['registro']!);
-  router.post('/login', key(PERMISOS.authLogin), limits.identificador, limits.loginIp, c['login']!);
+  router.post(
+    '/login',
+    key(PERMISOS.authLogin),
+    limits.codigoIdentificador,
+    limits.codigoIp,
+    c['login']!,
+  );
+  router.post(
+    '/login/code',
+    key(PERMISOS.authLogin),
+    limits.identificador,
+    limits.loginIp,
+    c['loginCodigo']!,
+  );
   router.post(
     '/confirm-email',
     key(PERMISOS.authConfirmEmail),

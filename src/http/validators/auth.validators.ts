@@ -8,7 +8,6 @@ import { z } from 'zod';
 import { normalizarEmail } from '../../shared/email.js';
 
 const email = z.email().transform(normalizarEmail);
-const password = z.string().regex(/^(?=.*[A-Za-z])(?=.*\d)\S{8,72}$/);
 export const registroSchema = z
   .object({
     email,
@@ -22,6 +21,7 @@ export const registroSchema = z
     path: ['codigo_municipio'],
     message: 'El municipio no pertenece al departamento indicado.',
   });
-export const loginSchema = z.object({ email, password });
+export const loginSchema = z.object({ email });
+export const loginCodigoSchema = z.object({ email, codigo: z.string().regex(/^\d{6}$/) });
 export const confirmacionSchema = z.object({ email, codigo: z.string().regex(/^\d{6}$/) });
 export const refreshSchema = z.object({ refresh_token: z.string().min(1) });

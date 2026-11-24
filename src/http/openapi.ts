@@ -18,6 +18,7 @@ import type {
 import type { AppConfig } from '../config/env.js';
 import {
   loginSchema,
+  loginCodigoSchema,
   refreshSchema,
   registroSchema,
   confirmacionSchema,
@@ -168,15 +169,25 @@ const ERRORES = {
     status: '401',
     descripcion: 'Falta el token de acceso del usuario.',
   },
-  tokenInvalido: {
-    codigo: 'TOKEN_INVALIDO',
-    status: '400',
-    descripcion: 'El enlace de correo no es valido o expiro.',
-  },
-  credencialesInvalidas: {
-    codigo: 'CREDENCIALES_INVALIDAS',
+  codigoAccesoNoExiste: {
+    codigo: 'CODIGO_ACCESO_NO_EXISTE',
     status: '401',
-    descripcion: 'Correo o contrasena incorrectos.',
+    descripcion: 'No hay codigo de acceso.',
+  },
+  codigoAccesoVencido: {
+    codigo: 'CODIGO_ACCESO_VENCIDO',
+    status: '401',
+    descripcion: 'El codigo de acceso vencio.',
+  },
+  codigoAccesoInvalido: {
+    codigo: 'CODIGO_ACCESO_INVALIDO',
+    status: '401',
+    descripcion: 'El codigo de acceso no coincide.',
+  },
+  codigoAccesoInvalidado: {
+    codigo: 'CODIGO_ACCESO_INVALIDADO',
+    status: '401',
+    descripcion: 'El codigo de acceso fue invalidado.',
   },
   usuarioYaExiste: {
     codigo: 'USUARIO_YA_EXISTE',
@@ -294,6 +305,7 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
         '',
         'Los clientes se identifican con la cabecera `X-API-Key`, que se obtiene una sola vez en el',
         'endpoint publico de registro de instalacion y se entrega en texto plano en esa respuesta.',
+        'El inicio de sesion solicita un codigo por correo y lo verifica para obtener los tokens.',
         'Los usuarios se autentican con el token de acceso en la cabecera `Authorization`.',
       ].join('\n'),
     },
@@ -456,14 +468,54 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
       [`${raiz}/auth/login`]: {
         post: {
           tags: ['Autenticacion'],
-          summary: 'Inicia sesion',
-          description:
-            'Valida las credenciales y devuelve el token de acceso junto con el token de ' +
-            'renovacion. Diez intentos fallidos consecutivos desactivar la cuenta.',
+          summary: 'Solicita un codigo de acceso',
+          description: 'Solicita el envio de un codigo de acceso al correo de la cuenta.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(loginSchema, {
+          requestBody: cuerpoDePeticion(loginSchema, { email: 'usuario@ejemplo.com' }),
+          responses: {
+            '200': {
+              description: 'Solicitud procesada.',
+              content: {
+                'application/json': {
+                  schema: envolver({
+                    type: 'object',
+                    properties: { correo_enviado: { type: 'boolean' } },
+                    required: ['correo_enviado'],
+                  }),
+                },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.validacion,
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+            ),
+            '403': {
+              description:
+                'API_KEY_SIN_PERMISO, CUENTA_POR_CONFIRMAR, CUENTA_INACTIVA, CUENTA_DESACTIVADA',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
+            '429': {
+              description: 'RATE_LIMIT_EXCEDIDO',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
+          },
+        },
+      },
+      [`${raiz}/auth/login/code`]: {
+        post: {
+          tags: ['Autenticacion'],
+          summary: 'Inicia sesion con codigo',
+          description:
+            'Verifica el codigo recibido por correo y entrega los tokens de la sesion. Diez intentos fallidos consecutivos desactivan la cuenta.',
+          security: seguridadApiKey,
+          requestBody: cuerpoDePeticion(loginCodigoSchema, {
             email: 'usuario@ejemplo.com',
-            password: 'ClaveSegura123',
+            codigo: '123456',
           }),
           responses: {
             '200': {
@@ -477,12 +529,35 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
               ERRORES.apiKeyRequerida,
               ERRORES.apiKeyInvalida,
               ERRORES.apiKeySinPermiso,
-              ERRORES.credencialesInvalidas,
+              ERRORES.codigoAccesoNoExiste,
+              ERRORES.codigoAccesoVencido,
+              ERRORES.codigoAccesoInvalido,
+              ERRORES.codigoAccesoInvalidado,
               ERRORES.cuentaPorConfirmar,
               ERRORES.cuentaInactiva,
               ERRORES.cuentaDesactivada,
               ERRORES.rateLimit,
             ),
+            '401': {
+              description:
+                'API_KEY_REQUERIDA, API_KEY_INVALIDA, CODIGO_ACCESO_NO_EXISTE, CODIGO_ACCESO_VENCIDO, CODIGO_ACCESO_INVALIDO, CODIGO_ACCESO_INVALIDADO',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
+            '403': {
+              description:
+                'API_KEY_SIN_PERMISO, CUENTA_POR_CONFIRMAR, CUENTA_INACTIVA, CUENTA_DESACTIVADA',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
+            '429': {
+              description: 'RATE_LIMIT_EXCEDIDO',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
           },
         },
       },

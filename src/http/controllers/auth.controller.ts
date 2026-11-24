@@ -11,6 +11,7 @@ import { responderOk } from '../http-response.js';
 import {
   confirmacionSchema,
   loginSchema,
+  loginCodigoSchema,
   refreshSchema,
   registroSchema,
 } from '../validators/auth.validators.js';
@@ -51,10 +52,19 @@ export const crearAuthController = (service: AuthService): Record<string, Reques
   },
   login: async (req, res) => {
     const body: unknown = req.body;
+    const resultado = await service.solicitarCodigoAcceso(loginSchema.parse(body));
+    responderOk(
+      res,
+      'Si la cuenta esta registrada y activa, te enviamos un codigo de acceso a tu correo electronico.',
+      { correo_enviado: resultado.correoEnviado },
+    );
+  },
+  loginCodigo: async (req, res) => {
+    const body: unknown = req.body;
     responderOk(
       res,
       'Sesion iniciada.',
-      datosSesion(await service.iniciarSesion(loginSchema.parse(body))),
+      datosSesion(await service.iniciarSesionConCodigo(loginCodigoSchema.parse(body))),
     );
   },
   confirmar: async (req, res) => {
