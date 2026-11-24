@@ -55,7 +55,7 @@ sequenceDiagram
         Backend->>App: 200, usuario en A
     else tyc es false
         Backend->>App: 201, usuario en C y correo_confirmacion_enviado false
-        Note over App,Backend: No se envía correo; la cuenta queda sin completar
+        Note over App,Backend: No se envía correo y la cuenta queda sin completar
     end
 ```
 
@@ -121,7 +121,7 @@ sequenceDiagram
         Persona->>App: Introducir contraseña actual y nueva
         App->>Backend: POST /auth/change-password con X-API-Key, Bearer y ambas contraseñas
         Backend->>App: 200, contraseña actualizada
-        Note over Backend: Se revocan las demás sesiones; la actual permanece abierta
+        Note over Backend: Se revocan las demás sesiones y la actual permanece abierta
     end
 ```
 
