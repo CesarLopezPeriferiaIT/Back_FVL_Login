@@ -1,9 +1,5 @@
 /**
- * Emision y verificacion de los tokens firmados por el servicio.
- *
- * Se usan dos familias de tokens con secretos distintos: token de acceso para las peticiones
- * autenticadas y token de confirmacion de correo. La separacion
- * de secretos garantiza que un token de un tipo no pueda usarse como si fuera de otro.
+ * Issue and verify access tokens for authenticated requests.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -14,7 +10,7 @@ import type { AppConfig } from '../config/env.js';
 import { AppError } from '../shared/errors.js';
 
 /** Proposito funcional de un token, verificado en cada lectura para evitar usos cruzados. */
-export type PropositoToken = 'access' | 'email-confirmation';
+export type PropositoToken = 'access';
 
 /** Contenido de un token de acceso. */
 export interface ClaimsAcceso {
@@ -23,17 +19,10 @@ export interface ClaimsAcceso {
   sid: string;
 }
 
-/** Contenido de un token de confirmacion de correo. */
-export interface ClaimsConfirmacion {
-  email: string;
-}
-
 /** Contrato de emision y verificacion de tokens. */
 export interface TokenService {
   crearTokenAcceso(params: { uuidUsuario: string; email: string; sessionId: string }): string;
   verificarTokenAcceso(token: string): ClaimsAcceso;
-  crearTokenConfirmacion(email: string): string;
-  verificarTokenConfirmacion(token: string): ClaimsConfirmacion;
 }
 
 const ALGORITMO = 'HS256';
@@ -42,10 +31,6 @@ const mensajeTokenInvalido = 'El token proporcionado no es valido o ya expiro.';
 
 /**
  * Verifica la firma y la vigencia de un token, y comprueba que su proposito sea el esperado.
- *
- * El estado HTTP distingue el uso de credenciales del uso de enlaces de correo: un token de
- * acceso invalido es un 401 porque el cliente no esta autenticado, mientras que un enlace de
- * confirmacion invalido es un 400 porque el dato recibido en la peticion no es valido.
  */
 const verificarToken = (
   token: string,
@@ -119,24 +104,6 @@ export const createTokenService = (config: AppConfig): TokenService => {
         email: exigirTexto(payload['email']),
         sid: exigirTexto(payload['sid']),
       };
-    },
-
-    crearTokenConfirmacion: (email: string): string =>
-      jwt.sign(
-        { email, purpose: 'email-confirmation' satisfies PropositoToken },
-        config.jwt.confirmSecret,
-        { ...opcionesFirma, expiresIn: comoExpiresIn(config.jwt.confirmTtl) },
-      ),
-
-    verificarTokenConfirmacion: (token: string): ClaimsConfirmacion => {
-      const payload = verificarToken(
-        token,
-        config.jwt.confirmSecret,
-        opcionesLectura,
-        'email-confirmation',
-        400,
-      );
-      return { email: exigirTexto(payload['email']) };
     },
   };
 };

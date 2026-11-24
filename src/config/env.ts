@@ -37,13 +37,10 @@ const envSchema = z.object({
   APP_ENV: ambienteSchema.default('dev'),
   API_VERSION: z.coerce.number().int().positive().default(1),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  PUBLIC_BASE_URL: z.url().default('http://localhost:3000'),
   TYC_VERSION: z.string().min(1).default('1.0.0'),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().min(1).default('15m'),
-  JWT_CONFIRM_SECRET: z.string().min(32),
-  JWT_CONFIRM_TTL: z.string().min(1).default('24h'),
   JWT_ISSUER: z.string().min(1).default('fvl-login'),
   JWT_AUDIENCE: z.string().min(1).default('fvl-clients'),
 
@@ -88,13 +85,10 @@ export interface AppConfig {
   ambiente: Ambiente;
   apiVersion: number;
   port: number;
-  publicBaseUrl: string;
   tycVersion: string;
   jwt: {
     accessSecret: string;
     accessTtl: string;
-    confirmSecret: string;
-    confirmTtl: string;
     issuer: string;
     audience: string;
   };
@@ -142,13 +136,10 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
   ambiente: valores.APP_ENV,
   apiVersion: valores.API_VERSION,
   port: valores.PORT,
-  publicBaseUrl: valores.PUBLIC_BASE_URL.replace(/\/+$/, ''),
   tycVersion: valores.TYC_VERSION,
   jwt: {
     accessSecret: valores.JWT_ACCESS_SECRET,
     accessTtl: valores.JWT_ACCESS_TTL,
-    confirmSecret: valores.JWT_CONFIRM_SECRET,
-    confirmTtl: valores.JWT_CONFIRM_TTL,
     issuer: valores.JWT_ISSUER,
     audience: valores.JWT_AUDIENCE,
   },

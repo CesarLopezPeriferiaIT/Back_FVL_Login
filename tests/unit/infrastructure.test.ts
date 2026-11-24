@@ -7,6 +7,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../../src/config/env.js';
 import { createMailSender } from '../../src/infrastructure/mail/mailer.js';
+import { plantillaCodigoConfirmacion } from '../../src/infrastructure/mail/templates.js';
 import { esClaveDuplicada } from '../../src/shared/errors.js';
 import { createLogger } from '../../src/shared/logger.js';
 import { configDePrueba } from '../helpers/config.js';
@@ -17,7 +18,6 @@ vi.mock('nodemailer', () => ({ default: { createTransport: mocks.createTransport
 const entorno = (): NodeJS.ProcessEnv => ({
   APP_ENV: 'dev',
   JWT_ACCESS_SECRET: 'a'.repeat(32),
-  JWT_CONFIRM_SECRET: 'b'.repeat(32),
   DB_SERVER: 'localhost',
   DB_DATABASE: 'prueba',
   DB_USER: 'usuario',
@@ -28,6 +28,23 @@ const entorno = (): NodeJS.ProcessEnv => ({
 });
 
 describe('infraestructura', () => {
+  it('prepara el correo de codigo con vencimiento', () => {
+    const correo = plantillaCodigoConfirmacion({
+      codigo: '012345',
+      expiraEn: new Date(Date.now() + 3600000),
+    });
+    expect(correo.asunto).toBe('Confirme su cuenta en el portal de la Fundacion Valle del Lili');
+    expect(correo.texto.split('\n')).toContain('012345');
+    expect(correo.texto).toContain('El codigo expira en 1 hora.');
+    expect(correo.html).toContain('012345');
+    expect(correo.html).toContain('El codigo expira en 1 hora.');
+    const otro = plantillaCodigoConfirmacion({
+      codigo: '123456',
+      expiraEn: new Date(Date.now() + 24 * 3600000),
+    });
+    expect(otro.texto).toContain('El codigo expira en 24 horas.');
+    expect(otro.html).toContain('El codigo expira en 24 horas.');
+  });
   it('valida y normaliza el entorno', () => {
     const config = loadConfig(entorno());
     expect(config.db.encrypt).toBe(true);

@@ -12,10 +12,12 @@ import { createApp } from './app.js';
 import { loadConfig } from './config/env.js';
 import { createApiKeyService } from './domain/api-key-service.js';
 import { createAuthService } from './domain/auth-service.js';
+import { createCodigoConfirmacionService } from './domain/codigo-confirmacion-service.js';
 import { createMailService } from './domain/mail-service.js';
 import { createPasswordHasher } from './domain/password-hasher.js';
 import { createTokenService } from './domain/token-service.js';
 import { createApiKeyRepository } from './infrastructure/database/api-key.repository.js';
+import { createCodigoConfirmacionRepository } from './infrastructure/database/codigo-confirmacion.repository.js';
 import { closePool, createPool } from './infrastructure/database/pool.js';
 import { createLogSessionRepository } from './infrastructure/database/log-session.repository.js';
 import { createUsuarioRepository } from './infrastructure/database/usuario.repository.js';
@@ -27,10 +29,20 @@ const main = async (): Promise<void> => {
   const logger = createLogger(config.logLevel);
   const pool = await createPool(config);
 
+  const usuarios = createUsuarioRepository(pool);
+  const repositorioCodigos = createCodigoConfirmacionRepository(pool);
   const hasher = createPasswordHasher();
+  const codigos = createCodigoConfirmacionService({
+    codigos: repositorioCodigos,
+    usuarios,
+    hasher,
+    config,
+    logger,
+  });
 
   const authService = createAuthService({
-    usuarios: createUsuarioRepository(pool),
+    usuarios,
+    codigos,
     sesiones: createLogSessionRepository(pool),
     hasher,
     tokens: createTokenService(config),

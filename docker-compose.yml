@@ -40,7 +40,6 @@ services:
       # La conexion a la base de datos sale tambien del .env: servidor, puerto, base de datos,
       # usuario, contrasena, cifrado y confianza en el certificado.
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET en el archivo .env}
-      JWT_CONFIRM_SECRET: ${JWT_CONFIRM_SECRET:?defina JWT_CONFIRM_SECRET en el archivo .env}
       DB_USER: ${DB_USER:?defina DB_USER en el archivo .env}
       DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD en el archivo .env}
     ports:

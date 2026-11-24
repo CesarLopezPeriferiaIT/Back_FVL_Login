@@ -42,6 +42,28 @@ const boton = (enlace: string, texto: string): string =>
    </p>
    <p style="margin:0;font-size:12px;color:#52606d;word-break:break-all;">Si el enlace no funciona, copie esta direccion en su navegador:<br />${enlace}</p>`;
 
+const horasRestantes = (expiraEn: Date): number =>
+  Math.max(1, Math.ceil((expiraEn.getTime() - Date.now()) / 3600000));
+
+/** Construye el correo de confirmacion por codigo. */
+export const plantillaCodigoConfirmacion = (params: {
+  codigo: string;
+  expiraEn: Date;
+}): ContenidoCorreo => {
+  const horas = horasRestantes(params.expiraEn);
+  const vencimiento = `El codigo expira en ${horas} ${horas === 1 ? 'hora' : 'horas'}.`;
+  const mensaje =
+    'Gracias por registrarse. Confirme su cuenta con el siguiente codigo para poder iniciar sesion.';
+  return {
+    asunto: 'Confirme su cuenta en el portal de la Fundacion Valle del Lili',
+    texto: ['Hola,', mensaje, params.codigo, vencimiento].join('\n\n'),
+    html: envolver(
+      'Confirme su cuenta',
+      `<p>Hola,</p><p>${mensaje}</p><p style="font-size:24px;font-weight:bold;letter-spacing:2px;">${params.codigo}</p><p>${vencimiento}</p>`,
+    ),
+  };
+};
+
 /**
  * Construye el correo de confirmacion de la cuenta.
  */

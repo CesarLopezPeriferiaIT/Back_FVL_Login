@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
+import { createCodigoConfirmacionService } from '../../src/domain/codigo-confirmacion-service.js';
 import { createMailService } from '../../src/domain/mail-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
 import { createTokenService } from '../../src/domain/token-service.js';
@@ -23,6 +24,7 @@ const construirApp = (): Express => {
   const config = configDePrueba();
   const logger = createLogger('error');
   const tokens = createTokenService(config);
+  const hasher = createPasswordHasher();
 
   return createApp({
     config,
@@ -32,7 +34,14 @@ const construirApp = (): Express => {
     authService: createAuthService({
       usuarios: banco.usuarios,
       sesiones: banco.sesiones,
-      hasher: createPasswordHasher(),
+      hasher,
+      codigos: createCodigoConfirmacionService({
+        codigos: banco.codigos,
+        usuarios: banco.usuarios,
+        hasher,
+        config,
+        logger,
+      }),
       tokens,
       correo: createMailService(banco.correo),
       config,

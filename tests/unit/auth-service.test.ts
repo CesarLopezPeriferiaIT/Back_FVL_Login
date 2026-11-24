@@ -9,6 +9,7 @@ import { createAuthService, LIMITE_INTENTOS_FALLIDOS } from '../../src/domain/au
 import type { AuthService } from '../../src/domain/auth-service.js';
 import type { Usuario } from '../../src/domain/entities.js';
 import { createMailService } from '../../src/domain/mail-service.js';
+import { createCodigoConfirmacionService } from '../../src/domain/codigo-confirmacion-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
 import { createTokenService } from '../../src/domain/token-service.js';
 import type { AppConfig } from '../../src/config/env.js';
@@ -34,6 +35,13 @@ const crearServicio = (): {
     hasher,
     tokens: createTokenService(config),
     correo: createMailService(banco.correo),
+    codigos: createCodigoConfirmacionService({
+      codigos: banco.codigos,
+      usuarios: banco.usuarios,
+      hasher,
+      config,
+      logger: createLogger('error'),
+    }),
     config,
     logger: createLogger('error'),
   });
@@ -41,15 +49,10 @@ const crearServicio = (): {
   return { banco, authService, config };
 };
 
-const extraerToken = (texto: string): string => {
-  const coincidencia = /token=([^\s]+)/.exec(texto);
-  const token = coincidencia?.[1];
-
-  if (token === undefined) {
-    throw new Error('El mensaje de correo no contiene un token.');
-  }
-
-  return decodeURIComponent(token);
+const extraerCodigo = (texto: string): string => {
+  const codigo = /^\d{6}$/m.exec(texto)?.[0];
+  if (codigo === undefined) throw new Error('El correo no contiene un codigo.');
+  return codigo;
 };
 
 const registrarActivo = async (): Promise<{
@@ -67,6 +70,37 @@ const registrarActivo = async (): Promise<{
   return { banco, authService, usuario };
 };
 
+describe('confirmacion con codigo', () => {
+  it('activa la cuenta antes de consumir el codigo', async () => {
+    const { banco, authService, config } = crearServicio();
+    const usuario = insertarUsuario(banco, {
+      email: 'codigo@ejemplo.co',
+      passHash: 'hash',
+      estado: 'C',
+    });
+    const codigos = createCodigoConfirmacionService({
+      codigos: banco.codigos,
+      usuarios: banco.usuarios,
+      hasher,
+      config,
+      logger: createLogger('error'),
+    });
+    const generado = await codigos.generar(usuario.email);
+    const marcarUsado = banco.codigos.marcarUsado.bind(banco.codigos);
+    banco.codigos.marcarUsado = async (uuid) => {
+      expect(usuario.estado).toBe('A');
+      await marcarUsado(uuid);
+    };
+    const resultado = await authService.confirmarCodigo({
+      email: usuario.email,
+      codigo: generado.codigo,
+    });
+    expect(resultado.estado).toBe('A');
+    expect(usuario.estado).toBe('A');
+    expect(banco.estado.codigos[0]?.usadoEn).not.toBeNull();
+  });
+});
+
 describe('registro de cuenta', () => {
   it('crea la cuenta en estado por confirmar y envia el correo de confirmacion', async () => {
     const { banco, authService } = crearServicio();
@@ -82,7 +116,7 @@ describe('registro de cuenta', () => {
     expect(banco.estado.usuarios).toHaveLength(1);
     expect(banco.estado.correos).toHaveLength(1);
     expect(banco.estado.correos[0]?.destinatario).toBe('nuevo@ejemplo.co');
-    expect(banco.estado.correos[0]?.texto).toContain('confirm-email');
+    expect(extraerCodigo(banco.estado.correos[0]?.texto ?? '')).toMatch(/^\d{6}$/);
   });
 
   it('no envia el correo de confirmacion cuando no se aceptan los terminos', async () => {
@@ -135,34 +169,56 @@ describe('registro de cuenta', () => {
 });
 
 describe('confirmacion de correo', () => {
-  it('deja la cuenta activa cuando el enlace es valido', async () => {
+  it('deja la cuenta activa cuando el codigo es valido', async () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
 
-    const token = extraerToken(banco.estado.correos[0]?.texto ?? '');
-    const usuario = await authService.confirmarCorreo(token);
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const usuario = await authService.confirmarCodigo({ email: 'nuevo@ejemplo.co', codigo });
 
     expect(usuario.estado).toBe('A');
     expect(banco.estado.usuarios[0]?.estado).toBe('A');
   });
 
-  it('rechaza un enlace invalido', async () => {
-    const { authService } = crearServicio();
+  it('rechaza un codigo incorrecto sin activar ni consumir la cuenta', async () => {
+    const { banco, authService } = crearServicio();
+    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    await expect(
+      authService.confirmarCodigo({
+        email: 'nuevo@ejemplo.co',
+        codigo: codigo === '000000' ? '000001' : '000000',
+      }),
+    ).rejects.toMatchObject({ codigo: 'CODIGO_CONFIRMACION_INVALIDO', status: 400 });
+    expect(banco.estado.usuarios[0]?.estado).toBe('C');
+    expect(banco.estado.codigos[0]?.usadoEn).toBeNull();
+  });
 
-    await expect(authService.confirmarCorreo('token-invalido')).rejects.toMatchObject({
-      codigo: 'TOKEN_INVALIDO',
-      status: 400,
-    });
+  it('rechaza un codigo vencido sin activar ni consumir la cuenta', async () => {
+    const { banco, authService } = crearServicio();
+    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const registro = banco.estado.codigos[0];
+    if (!registro) throw new Error('Codigo no encontrado');
+    registro.expiraEn = new Date(0);
+    await expect(
+      authService.confirmarCodigo({ email: 'nuevo@ejemplo.co', codigo }),
+    ).rejects.toMatchObject({ codigo: 'CODIGO_CONFIRMACION_VENCIDO', status: 400 });
+    expect(banco.estado.usuarios[0]?.estado).toBe('C');
+    expect(registro.usadoEn).toBeNull();
+    expect(registro.intentos).toBe(0);
   });
 
   it('rechaza confirmar una cuenta que ya fue confirmada', async () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
-    const token = extraerToken(banco.estado.correos[0]?.texto ?? '');
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
 
-    await authService.confirmarCorreo(token);
+    await authService.confirmarCodigo({ email: 'nuevo@ejemplo.co', codigo });
 
-    await expect(authService.confirmarCorreo(token)).rejects.toMatchObject({
+    await expect(
+      authService.confirmarCodigo({ email: 'nuevo@ejemplo.co', codigo }),
+    ).rejects.toMatchObject({
       codigo: 'CUENTA_YA_CONFIRMADA',
       status: 409,
     });

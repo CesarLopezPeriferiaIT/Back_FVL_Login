@@ -7,17 +7,29 @@
  * @version 1.0.0
  */
 import type { MailSender } from './ports.js';
-import { plantillaConfirmacion } from '../infrastructure/mail/templates.js';
+import {
+  plantillaConfirmacion,
+  plantillaCodigoConfirmacion,
+} from '../infrastructure/mail/templates.js';
 
 /** Contrato de envio de correo. */
 export interface MailService {
   enviarConfirmacion(destinatario: string, enlace: string): Promise<void>;
+  enviarCodigoConfirmacion(destinatario: string, codigo: string, expiraEn: Date): Promise<void>;
 }
 
 /**
  * Crea el servicio de correo sobre el transporte indicado.
  */
 export const createMailService = (sender: MailSender): MailService => ({
+  enviarCodigoConfirmacion: async (
+    destinatario: string,
+    codigo: string,
+    expiraEn: Date,
+  ): Promise<void> => {
+    const contenido = plantillaCodigoConfirmacion({ codigo, expiraEn });
+    await sender.enviar({ destinatario, ...contenido });
+  },
   enviarConfirmacion: async (destinatario: string, enlace: string): Promise<void> => {
     const contenido = plantillaConfirmacion({ enlace });
     await sender.enviar({

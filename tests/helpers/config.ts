@@ -15,13 +15,10 @@ export const configDePrueba = (): AppConfig => ({
   ambiente: 'dev',
   apiVersion: 1,
   port: 3000,
-  publicBaseUrl: 'https://login.pruebas.fvl.org.co',
   tycVersion: '1.0.0',
   jwt: {
     accessSecret: SECRETO_DE_PRUEBA,
     accessTtl: '15m',
-    confirmSecret: `${SECRETO_DE_PRUEBA}-confirmacion`,
-    confirmTtl: '24h',
     issuer: 'fvl-login',
     audience: 'fvl-clients',
   },
