@@ -107,10 +107,19 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
 ### D7. Servicio de autenticacion
 
 - `src/domain/auth-service.ts`: `solicitarCodigoAcceso({ email })` y `iniciarSesionConCodigo({ email, codigo })`.
-  Se elimina `iniciarSesion({ email, password })` y la dependencia `hasher` del servicio de autenticacion.
 - `src/index.ts`: composicion del repositorio y del servicio de codigo de acceso.
 - El hasher de argon2 se conserva: pasa a hashear codigos OTP y no contrasenas; se actualiza su JSDoc para
   reflejar el uso nuevo.
+- Secuencia de la eliminacion de la contrasena: T4 (U4) incorpora los dos metodos nuevos y CONSERVA
+  `iniciarSesion({ email, password })` y la dependencia `hasher` del servicio de autenticacion, porque el
+  contrato HTTP que lo invoca se cambia en T5 (U5). T6 (U6) elimina `iniciarSesion({ email, password })`, la
+  dependencia `hasher` del servicio de autenticacion y `passHash` de la entidad. T6 es el unico lugar donde se
+  elimina la contrasena; hasta entonces el camino legacy permanece intacto y sin cambios de comportamiento.
+- Dependencia `codigosAcceso` del servicio de autenticacion: en T4 (U4) se declara opcional en `AuthServiceDeps`
+  (`codigosAcceso?: CodigoLoginService`) y los dos metodos nuevos la exigen en tiempo de ejecucion con un error
+  claro de configuracion si no esta presente. Motivo: el camino legacy solo se elimina en T6 (U6), y T6 es
+  tambien el commit que vuelve obligatoria la dependencia y actualiza las construcciones de prueba que hoy la
+  omiten. La composicion de produccion (`src/index.ts`) siempre la provee desde T4.
 
 ### D8. Fin de la contrasena
 
@@ -175,6 +184,8 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
   unico filtrado admite un solo codigo no consumido por cuenta, por lo que no sirve para el codigo de acceso.
 - L6 (2026-11-12) - T1 entregado en el commit `407ce74` (`feat(auth): persist OTP login codes in dbo.codigo_login`), 582 lineas authored: ese commit es el limite de corte de la primera rebanada de revision. Evidencia: 18 pruebas del repositorio en verde, `typecheck` y `lint` en verde; `npm run format:check` falla unicamente por `.atl/.skill-registry.md` y `.atl/.skill-registry.cache.json`, que ya fallaban antes de este trabajo.
 - L7 (2026-11-12) - T2 entregado en el commit `00cdb8d` (`feat(auth): add login OTP code domain service`), 368 lineas authored: el limite de corte de la segunda rebanada de revision. Evidencia: 10 pruebas del servicio del codigo en verde y 142 del total, `typecheck` y `lint` en verde.
+- L9 (2026-11-12) - Decisiones de ejecucion tras tres ciclos de estancamiento del escritor en T4: la dependencia `codigosAcceso` se declara opcional en T4 y obligatoria en T6, para que cada unidad de trabajo sea pequena y el proyecto compile en cada commit. No cambia el comportamiento observable del flujo de inicio de sesion con OTP.
+- L8 (2026-11-12) - Aclaracion de secuencia para el escritor: D7 y T6 se leian como contradictorios. T4 agrega los dos metodos nuevos y conserva el camino legacy de la contrasena; la eliminacion ocurre unicamente en T6. No cambia ninguna especificacion de comportamiento.
 - L5 (2026-11-12) - Decisiones tecnicas tomadas por el orquestador: el codigo de acceso se entrega por correo
   electronico (unico canal disponible); se reutiliza el alcance `auth:login` en vez de crear uno nuevo; el codigo
   de acceso vive en una tabla nueva en vez de alterar `dbo.codigo_confirmacion`; se conserva la regla de 10

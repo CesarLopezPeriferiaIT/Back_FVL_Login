@@ -15,7 +15,11 @@ import { createTokenService } from '../../src/domain/token-service.js';
 import type { AppConfig } from '../../src/config/env.js';
 import { createLogger } from '../../src/shared/logger.js';
 import { configDePrueba } from '../helpers/config.js';
-import { crearBancoEnMemoria, insertarUsuario } from '../helpers/in-memory.js';
+import {
+  crearBancoEnMemoria,
+  insertarUsuario,
+  crearServicioCodigoAccesoDePrueba,
+} from '../helpers/in-memory.js';
 import type { BancoEnMemoria } from '../helpers/in-memory.js';
 
 const PASSWORD = 'ClaveSegura1';
@@ -39,6 +43,12 @@ const crearServicio = (): {
     codigos: createCodigoConfirmacionService({
       codigos: banco.codigos,
       usuarios: banco.usuarios,
+      hasher,
+      config,
+      logger: createLogger('error'),
+    }),
+    codigosAcceso: crearServicioCodigoAccesoDePrueba({
+      banco,
       hasher,
       config,
       logger: createLogger('error'),
@@ -131,6 +141,12 @@ describe('confirmacion con codigo', () => {
       tokens: createTokenService(config),
       correo: createMailService(banco.correo),
       codigos,
+      codigosAcceso: crearServicioCodigoAccesoDePrueba({
+        banco,
+        hasher: hasherBloqueante,
+        config,
+        logger: createLogger('error'),
+      }),
       config,
       logger: createLogger('error'),
     });
@@ -373,6 +389,110 @@ describe('confirmacion de correo', () => {
       codigo: 'CUENTA_YA_CONFIRMADA',
       status: 409,
     });
+  });
+});
+
+describe('inicio de sesion con codigo', () => {
+  it('devuelve correo no enviado si falla la entrega', async () => {
+    const { banco, authService, usuario } = await registrarActivo();
+    banco.correo.enviar = async () => {
+      throw new Error('fallo de correo');
+    };
+    await expect(authService.solicitarCodigoAcceso({ email: usuario.email })).resolves.toEqual({
+      correoEnviado: false,
+    });
+    expect(banco.estado.correos).toHaveLength(0);
+  });
+
+  it.each([
+    ['C', 'CUENTA_POR_CONFIRMAR'],
+    ['I', 'CUENTA_INACTIVA'],
+    ['D', 'CUENTA_DESACTIVADA'],
+  ] as const)('rechaza solicitar codigo para estado %s', async (estado, codigo) => {
+    const { banco, authService } = crearServicio();
+    const usuario = insertarUsuario(banco, { email: 'estado@ejemplo.co', passHash: 'hash', estado });
+    await expect(authService.solicitarCodigoAcceso({ email: usuario.email })).rejects.toMatchObject({
+      codigo,
+      status: 403,
+    });
+    expect(banco.estado.correos).toHaveLength(0);
+    expect(banco.estado.codigosLogin).toHaveLength(0);
+  });
+
+  it('registra el intento de un codigo incorrecto', async () => {
+    const { banco, authService, usuario } = await registrarActivo();
+    await authService.solicitarCodigoAcceso({ email: usuario.email });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    await expect(
+      authService.iniciarSesionConCodigo({
+        email: usuario.email,
+        codigo: codigo === '000000' ? '000001' : '000000',
+      }),
+    ).rejects.toMatchObject({ codigo: 'CODIGO_ACCESO_INVALIDO', status: 401 });
+    expect(banco.estado.sesiones).toHaveLength(1);
+    expect(banco.estado.sesiones[0]?.successful).toBe(false);
+    expect(banco.estado.sesiones[0]?.uuidUsuario).toBe(usuario.uuid);
+  });
+
+  it('clasifica el codigo consumido durante la validacion', async () => {
+    const { banco, authService, usuario } = await registrarActivo();
+    await authService.solicitarCodigoAcceso({ email: usuario.email });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const marcarUsado = banco.codigosLogin.marcarUsado.bind(banco.codigosLogin);
+    banco.codigosLogin.marcarUsado = async (uuid) => {
+      expect(await marcarUsado(uuid)).toBe(true);
+      return marcarUsado(uuid);
+    };
+    await expect(authService.iniciarSesionConCodigo({ email: usuario.email, codigo })).rejects.toMatchObject({
+      codigo: 'CODIGO_ACCESO_NO_EXISTE',
+      status: 401,
+    });
+    expect(banco.estado.sesiones.filter((sesion) => sesion.successful)).toHaveLength(0);
+  });
+
+  it('envia el codigo y permite iniciar sesion', async () => {
+    const { banco, authService, usuario } = await registrarActivo();
+    await expect(
+      authService.solicitarCodigoAcceso({ email: ' USUARIO@EJEMPLO.CO ' }),
+    ).resolves.toEqual({ correoEnviado: true });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const sesion = await authService.iniciarSesionConCodigo({ email: usuario.email, codigo });
+    expect(sesion.tokenAcceso).toBeTruthy();
+    expect(sesion.tokenRefresh).toBeTruthy();
+    expect(sesion.usuario.uuid).toBe(usuario.uuid);
+    expect(banco.estado.sesiones[0]?.successful).toBe(true);
+  });
+  it('cuenta errores y desactiva al decimo', async () => {
+    const { banco, authService, usuario } = await registrarActivo();
+    await authService.solicitarCodigoAcceso({ email: usuario.email });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const incorrecto = codigo === '000000' ? '000001' : '000000';
+    for (let i = 0; i < 9; i++) {
+      await expect(
+        authService.iniciarSesionConCodigo({ email: usuario.email, codigo: incorrecto }),
+      ).rejects.toMatchObject({ status: 401 });
+    }
+    await expect(
+      authService.iniciarSesionConCodigo({ email: usuario.email, codigo: incorrecto }),
+    ).rejects.toMatchObject({ codigo: 'CUENTA_DESACTIVADA', status: 403 });
+    expect(usuario.estado).toBe('D');
+    expect(banco.estado.sesiones).toHaveLength(10);
+  });
+  it('no cuenta un correo desconocido', async () => {
+    const { banco, authService } = crearServicio();
+    await expect(
+      authService.iniciarSesionConCodigo({ email: 'nadie@ejemplo.co', codigo: '123456' }),
+    ).rejects.toMatchObject({ codigo: 'CODIGO_ACCESO_NO_EXISTE', status: 401 });
+    expect(banco.estado.sesiones).toHaveLength(0);
+  });
+  it('responde igual para un correo desconocido sin enviar correo', async () => {
+    const { banco, authService } = crearServicio();
+    await expect(authService.solicitarCodigoAcceso({ email: 'nadie@ejemplo.co' })).resolves.toEqual(
+      {
+        correoEnviado: true,
+      },
+    );
+    expect(banco.estado.correos).toHaveLength(0);
   });
 });
 

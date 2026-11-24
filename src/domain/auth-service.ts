@@ -11,6 +11,7 @@ import type { Usuario, UsuarioPublico } from './entities.js';
 import type { LogSessionRepository, UsuarioRepository } from './ports.js';
 import type { MailService } from './mail-service.js';
 import type { CodigoConfirmacionService } from './codigo-confirmacion-service.js';
+import type { CodigoLoginService } from './codigo-login-service.js';
 import type { PasswordHasher } from './password-hasher.js';
 import type { TokenService } from './token-service.js';
 import { generarTokenAleatorio, sha256 } from '../shared/crypto.js';
@@ -50,6 +51,8 @@ export interface DatosRegistro {
 export interface AuthService {
   registrar(params: DatosRegistro): Promise<ResultadoRegistro>;
   iniciarSesion(params: { email: string; password: string }): Promise<ResultadoSesion>;
+  solicitarCodigoAcceso(params: { email: string }): Promise<{ correoEnviado: boolean }>;
+  iniciarSesionConCodigo(params: { email: string; codigo: string }): Promise<ResultadoSesion>;
   confirmarCodigo(params: { email: string; codigo: string }): Promise<UsuarioPublico>;
   renovarSesion(tokenRefresh: string): Promise<ResultadoSesion>;
   cerrarSesion(sessionId: string): Promise<void>;
@@ -64,6 +67,7 @@ export interface AuthServiceDeps {
   tokens: TokenService;
   correo: MailService;
   codigos: CodigoConfirmacionService;
+  codigosAcceso?: CodigoLoginService;
   config: AppConfig;
   logger: Logger;
 }
@@ -185,6 +189,65 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
       );
 
       return { usuario: toUsuarioPublico(usuario), correoConfirmacionEnviado: enviado };
+    },
+
+    solicitarCodigoAcceso: async ({ email }) => {
+      const servicio = deps.codigosAcceso;
+      if (!servicio)
+        throw new Error('El servicio de autenticacion necesita el servicio de codigo de acceso.');
+      const normalizado = normalizarEmail(email);
+      const usuario = await usuarios.findByEmail(normalizado);
+      if (!usuario) {
+        logger.warn('Solicitud de codigo para una cuenta inexistente');
+        return { correoEnviado: true };
+      }
+      const { codigo, expiraEn } = await servicio.generar(normalizado);
+      const enviado = await enviarCorreo(() =>
+        correo.enviarCodigoAcceso(normalizado, codigo, expiraEn),
+      );
+      return { correoEnviado: enviado };
+    },
+
+    iniciarSesionConCodigo: async ({ email, codigo }) => {
+      const servicio = deps.codigosAcceso;
+      if (!servicio)
+        throw new Error('El servicio de autenticacion necesita el servicio de codigo de acceso.');
+      const normalizado = normalizarEmail(email);
+      try {
+        const { usuario, uuidCodigo } = await servicio.validar(normalizado, codigo);
+        if (!(await servicio.marcarUsado(uuidCodigo)))
+          throw await servicio.clasificarFallo(normalizado);
+        return await crearSesion(usuario);
+      } catch (error) {
+        if (
+          error instanceof AppError &&
+          [
+            'CODIGO_ACCESO_NO_EXISTE',
+            'CODIGO_ACCESO_VENCIDO',
+            'CODIGO_ACCESO_INVALIDO',
+            'CODIGO_ACCESO_INVALIDADO',
+          ].includes(error.codigo)
+        ) {
+          const usuario = await usuarios.findByEmail(normalizado);
+          if (usuario) {
+            await sesiones.registrarIntentoFallido(usuario.uuid);
+            const fallidos = await sesiones.contarIntentosFallidosDesdeUltimoExito(usuario.uuid);
+            if (fallidos >= LIMITE_INTENTOS_FALLIDOS) {
+              await usuarios.updateEstado(usuario.uuid, 'D');
+              logger.warn('Cuenta desactivada por superar el limite de intentos fallidos', {
+                uuidUsuario: usuario.uuid,
+                intentosFallidos: fallidos,
+              });
+              throw new AppError(
+                'CUENTA_DESACTIVADA',
+                'La cuenta fue desactivada por intentos fallidos de inicio de sesion.',
+                403,
+              );
+            }
+          }
+        }
+        throw error;
+      }
     },
 
     iniciarSesion: async ({ email, password }): Promise<ResultadoSesion> => {

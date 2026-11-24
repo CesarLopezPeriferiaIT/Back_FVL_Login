@@ -8,6 +8,11 @@
  * @version 1.0.0
  */
 import { randomUUID } from 'node:crypto';
+import type { AppConfig } from '../../src/config/env.js';
+import { createCodigoLoginService } from '../../src/domain/codigo-login-service.js';
+import type { CodigoLoginService } from '../../src/domain/codigo-login-service.js';
+import type { PasswordHasher } from '../../src/domain/password-hasher.js';
+import type { Logger } from '../../src/shared/logger.js';
 import type {
   ApiKey,
   CodigoConfirmacion,
@@ -50,6 +55,21 @@ export interface BancoEnMemoria {
   catalogos: CatalogoRepository;
   estado: EstadoBanco;
 }
+
+/** Crea el servicio de codigos de acceso para las pruebas. */
+export const crearServicioCodigoAccesoDePrueba = (params: {
+  banco: BancoEnMemoria;
+  hasher: PasswordHasher;
+  config: AppConfig;
+  logger: Logger;
+}): CodigoLoginService =>
+  createCodigoLoginService({
+    codigos: params.banco.codigosLogin,
+    usuarios: params.banco.usuarios,
+    hasher: params.hasher,
+    config: params.config,
+    logger: params.logger,
+  });
 
 /**
  * Crea un banco en memoria con los repositorios vacios.
