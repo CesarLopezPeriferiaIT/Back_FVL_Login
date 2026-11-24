@@ -39,6 +39,24 @@ const envolver = (titulo: string, cuerpo: string): string => `<!doctype html>
 const horasRestantes = (expiraEn: Date): number =>
   Math.max(1, Math.ceil((expiraEn.getTime() - Date.now()) / 3600000));
 
+/** Construye el correo con el codigo de acceso. */
+export const plantillaCodigoAcceso = (params: {
+  codigo: string;
+  expiraEn: Date;
+}): ContenidoCorreo => {
+  const minutos = Math.max(1, Math.ceil((params.expiraEn.getTime() - Date.now()) / 60000));
+  const vencimiento = `El codigo expira en ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'}.`;
+  const mensaje = 'Use el siguiente codigo para iniciar sesion.';
+  return {
+    asunto: 'Codigo de acceso',
+    texto: ['Hola,', mensaje, params.codigo, vencimiento].join('\n\n'),
+    html: envolver(
+      'Codigo de acceso',
+      `<p>Hola,</p><p>${mensaje}</p><p style="font-size:24px;font-weight:bold;letter-spacing:2px;">${params.codigo}</p><p>${vencimiento}</p>`,
+    ),
+  };
+};
+
 /** Construye el correo de confirmacion por codigo. */
 export const plantillaCodigoConfirmacion = (params: {
   codigo: string;

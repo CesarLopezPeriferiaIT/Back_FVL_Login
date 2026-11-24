@@ -6,8 +6,12 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../../src/config/env.js';
+import { createMailService } from '../../src/domain/mail-service.js';
 import { createMailSender } from '../../src/infrastructure/mail/mailer.js';
-import { plantillaCodigoConfirmacion } from '../../src/infrastructure/mail/templates.js';
+import {
+  plantillaCodigoAcceso,
+  plantillaCodigoConfirmacion,
+} from '../../src/infrastructure/mail/templates.js';
 import { esClaveDuplicada, esLlaveForaneaInvalida } from '../../src/shared/errors.js';
 import { createLogger } from '../../src/shared/logger.js';
 import { configDePrueba } from '../helpers/config.js';
@@ -28,6 +32,37 @@ const entorno = (): NodeJS.ProcessEnv => ({
 });
 
 describe('infraestructura', () => {
+  it('prepara el correo de acceso con vencimiento', () => {
+    const correo = plantillaCodigoAcceso({
+      codigo: '012345',
+      expiraEn: new Date(Date.now() + 600000),
+    });
+    expect(correo.asunto).toBe('Codigo de acceso');
+    expect(correo.texto).toContain('012345');
+    expect(correo.texto).toContain('10 minutos');
+    expect(correo.html).toContain('012345');
+    expect(correo.html).toContain('10 minutos');
+  });
+
+  it('envia el codigo de acceso mediante SMTP', async () => {
+    mocks.createTransport.mockReturnValue({ sendMail: mocks.sendMail });
+    mocks.sendMail.mockResolvedValue(undefined);
+    const config = configDePrueba();
+    config.mail.transport = 'smtp';
+    config.mail.host = 'smtp.example';
+    await createMailService(createMailSender(config, createLogger('error'))).enviarCodigoAcceso(
+      'a@example.co',
+      '012345',
+      new Date(Date.now() + 600000),
+    );
+    expect(mocks.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: config.mail.from,
+        to: 'a@example.co',
+        subject: 'Codigo de acceso',
+      }),
+    );
+  });
   it('prepara el correo de codigo con vencimiento', () => {
     const correo = plantillaCodigoConfirmacion({
       codigo: '012345',
