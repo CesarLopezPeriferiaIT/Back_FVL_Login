@@ -9,6 +9,7 @@
  */
 import type {
   ApiKey,
+  CodigoAcceso,
   CodigoConfirmacion,
   Departamento,
   EstadoUsuario,
@@ -30,6 +31,19 @@ export interface CodigoConfirmacionRepository {
     maxIntentos: number,
   ): Promise<{ intentos: number; invalidado: boolean } | null>;
   marcarUsado(uuid: string): Promise<void>;
+  invalidar(uuid: string): Promise<void>;
+}
+
+/** Acceso a los codigos de inicio de sesion. */
+export interface CodigoLoginRepository {
+  guardar(codigo: CodigoAcceso): Promise<void>;
+  buscarNoConsumidoPorUsuario(uuidUsuario: string): Promise<CodigoAcceso | null>;
+  buscarUltimoPorUsuario(uuidUsuario: string): Promise<CodigoAcceso | null>;
+  registrarIntentoFallido(
+    uuid: string,
+    maxIntentos: number,
+  ): Promise<{ intentos: number; invalidado: boolean } | null>;
+  marcarUsado(uuid: string): Promise<boolean>;
   invalidar(uuid: string): Promise<void>;
 }
 

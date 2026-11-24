@@ -36,6 +36,17 @@ export interface CodigoConfirmacion {
   usadoEn: Date | null;
 }
 
+/** Codigo de acceso persistido. */
+export interface CodigoAcceso {
+  uuid: string;
+  uuidUsuario: string;
+  codigoHash: string;
+  expiraEn: Date;
+  intentos: number;
+  invalidado: boolean;
+  usadoEn: Date | null;
+}
+
 /** Cuenta de usuario persistida. */
 export interface Usuario {
   uuid: string;

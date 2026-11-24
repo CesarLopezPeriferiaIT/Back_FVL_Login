@@ -5,6 +5,7 @@
  * @version 1.0.0
  */
 import { describe, expect, it } from 'vitest';
+import { createCodigoLoginRepository } from '../../src/infrastructure/database/codigo-login.repository.js';
 import { createCodigoConfirmacionRepository } from '../../src/infrastructure/database/codigo-confirmacion.repository.js';
 import { createApiKeyRepository } from '../../src/infrastructure/database/api-key.repository.js';
 import { createCatalogoRepository } from '../../src/infrastructure/database/catalogo.repository.js';
@@ -322,6 +323,64 @@ describe('repositorio de codigos de confirmacion', () => {
     expect(consultas[4]?.sql).toContain('usado_en = SYSUTCDATETIME()');
     await repo.invalidar('codigo');
     expect(consultas[5]?.sql).toContain('invalidado = 1');
+  });
+});
+
+describe('repositorio de codigos de acceso', () => {
+  it('persiste, consulta y consume codigos atomicamente', async () => {
+    const codigo = {
+      uuid: 'codigo',
+      uuidUsuario: 'usuario',
+      codigoHash: 'hash',
+      expiraEn: new Date('2020-01-01'),
+      intentos: 2,
+      invalidado: false,
+      usadoEn: null,
+    };
+    const fila = {
+      uuid: codigo.uuid,
+      uuid_usuario: codigo.uuidUsuario,
+      codigo_hash: codigo.codigoHash,
+      expira_en: codigo.expiraEn,
+      intentos: 2,
+      invalidado: false,
+      usado_en: null,
+    };
+    const { pool, consultas } = crearPoolFalso([
+      [],
+      [fila],
+      [fila],
+      [{ intentos: 3, invalidado: false }],
+      [{ uuid: 'codigo' }],
+      [],
+      [],
+    ]);
+    const repo = createCodigoLoginRepository(pool);
+    await repo.guardar(codigo);
+    expect(consultas[0]?.sql).toContain('INSERT INTO dbo.codigo_login');
+    expect(consultas[0]?.sql).toContain(
+      '(uuid, uuid_usuario, codigo_hash, expira_en, intentos, invalidado, usado_en, fecha_creacion)',
+    );
+    expect(consultas[0]?.parametros).toEqual(codigo);
+    expect(await repo.buscarNoConsumidoPorUsuario('usuario')).toEqual(codigo);
+    expect(consultas[1]?.sql).toContain('usado_en IS NULL AND invalidado = 0');
+    expect(consultas[1]?.sql).not.toMatch(/expira_en\s*[><]/);
+    expect(await repo.buscarUltimoPorUsuario('usuario')).toEqual(codigo);
+    expect(consultas[2]?.sql).not.toMatch(/usado_en IS NULL|invalidado = 0|expira_en\s*[><]/);
+    expect(await repo.registrarIntentoFallido('codigo', 5)).toEqual({
+      intentos: 3,
+      invalidado: false,
+    });
+    expect(consultas[3]?.sql).toMatch(
+      /SET[\s\S]*OUTPUT INSERTED\.intentos, INSERTED\.invalidado[\s\S]*WHERE[\s\S]*expira_en > SYSUTCDATETIME\(\)/,
+    );
+    expect(await repo.marcarUsado('codigo')).toBe(true);
+    expect(await repo.marcarUsado('codigo')).toBe(false);
+    expect(consultas[4]?.sql).toMatch(
+      /OUTPUT INSERTED\.uuid[\s\S]*WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0 AND expira_en > SYSUTCDATETIME\(\)/,
+    );
+    await repo.invalidar('codigo');
+    expect(consultas[6]?.sql).toContain('invalidado = 1');
   });
 });
 
