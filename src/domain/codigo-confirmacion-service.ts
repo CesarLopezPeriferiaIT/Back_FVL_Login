@@ -56,12 +56,26 @@ export const createCodigoConfirmacionService = (deps: {
       if (usuario.estado !== 'C')
         throw new AppError('CUENTA_YA_CONFIRMADA', 'La cuenta ya fue confirmada.', 409);
       const registro = await deps.codigos.buscarNoConsumidoPorUsuario(usuario.uuid);
-      if (!registro)
+      if (!registro) {
+        const ultimo = await deps.codigos.buscarUltimoPorUsuario(usuario.uuid);
+        if (ultimo?.invalidado)
+          throw new AppError(
+            'CODIGO_CONFIRMACION_INVALIDADO',
+            'El codigo de confirmacion se invalido por demasiados intentos fallidos.',
+            429,
+          );
+        if (ultimo && ultimo.expiraEn.getTime() <= Date.now())
+          throw new AppError(
+            'CODIGO_CONFIRMACION_VENCIDO',
+            'El codigo de confirmacion vencio. Solicite un nuevo codigo.',
+            400,
+          );
         throw new AppError(
           'CODIGO_CONFIRMACION_NO_EXISTE',
           'No hay un codigo de confirmacion vigente para esta cuenta.',
           404,
         );
+      }
       if (registro.expiraEn.getTime() <= Date.now())
         throw new AppError(
           'CODIGO_CONFIRMACION_VENCIDO',
@@ -69,9 +83,15 @@ export const createCodigoConfirmacionService = (deps: {
           400,
         );
       if (!(await deps.hasher.verify(registro.codigoHash, codigo))) {
-        const intentos = await deps.codigos.registrarIntentoFallido(registro.uuid);
-        if (intentos >= deps.config.confirmacion.maxIntentos) {
-          await deps.codigos.invalidar(registro.uuid);
+        const resultado = await deps.codigos.registrarIntentoFallido(
+          registro.uuid,
+          deps.config.confirmacion.maxIntentos,
+        );
+        if (
+          !resultado ||
+          resultado.invalidado ||
+          resultado.intentos >= deps.config.confirmacion.maxIntentos
+        ) {
           throw new AppError(
             'CODIGO_CONFIRMACION_INVALIDADO',
             'El codigo de confirmacion se invalido por demasiados intentos fallidos.',

@@ -21,7 +21,11 @@ import type {
 export interface CodigoConfirmacionRepository {
   guardar(codigo: CodigoConfirmacion): Promise<void>;
   buscarNoConsumidoPorUsuario(uuidUsuario: string): Promise<CodigoConfirmacion | null>;
-  registrarIntentoFallido(uuid: string): Promise<number>;
+  buscarUltimoPorUsuario(uuidUsuario: string): Promise<CodigoConfirmacion | null>;
+  registrarIntentoFallido(
+    uuid: string,
+    maxIntentos: number,
+  ): Promise<{ intentos: number; invalidado: boolean } | null>;
   marcarUsado(uuid: string): Promise<void>;
   invalidar(uuid: string): Promise<void>;
 }

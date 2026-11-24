@@ -56,14 +56,37 @@ export const createCodigoConfirmacionRepository = (
         }
       : null;
   },
-  registrarIntentoFallido: async (uuid) => {
-    const result = await pool.request().input('uuid', sql.UniqueIdentifier, uuid).query<
-      IRecordSet<{ intentos: number }>
-    >(`UPDATE dbo.codigo_confirmacion SET intentos = intentos + 1
-        OUTPUT INSERTED.intentos WHERE uuid = @uuid`);
+  buscarUltimoPorUsuario: async (uuidUsuario) => {
+    const result = await pool.request().input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
+      .query<
+      IRecordSet<CodigoRow>
+    >(`SELECT TOP 1 uuid, uuid_usuario, codigo_hash, expira_en, intentos, invalidado, usado_en
+        FROM dbo.codigo_confirmacion WHERE uuid_usuario = @uuidUsuario ORDER BY fecha_creacion DESC`);
     const fila = result.recordset[0];
-    if (!fila) throw new Error('No fue posible registrar el intento fallido.');
-    return fila.intentos;
+    return fila
+      ? {
+          uuid: fila.uuid,
+          uuidUsuario: fila.uuid_usuario,
+          codigoHash: fila.codigo_hash,
+          expiraEn: fila.expira_en,
+          intentos: fila.intentos,
+          invalidado: fila.invalidado,
+          usadoEn: fila.usado_en,
+        }
+      : null;
+  },
+  registrarIntentoFallido: async (uuid, maxIntentos) => {
+    const result = await pool
+      .request()
+      .input('uuid', sql.UniqueIdentifier, uuid)
+      .input('maxIntentos', sql.Int, maxIntentos)
+      .query<IRecordSet<{ intentos: number; invalidado: boolean }>>(
+        `UPDATE dbo.codigo_confirmacion SET intentos = intentos + 1,
+        invalidado = CASE WHEN intentos + 1 >= @maxIntentos THEN 1 ELSE invalidado END
+        OUTPUT INSERTED.intentos, INSERTED.invalidado
+        WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0`,
+      );
+    return result.recordset[0] ?? null;
   },
   marcarUsado: async (uuid) => {
     await pool

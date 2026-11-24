@@ -230,6 +230,10 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
 
       const activado = await usuarios.activarConCodigoVigente(usuario.uuid, uuidCodigo);
       if (!activado) {
+        const actual = await usuarios.findByUuid(usuario.uuid);
+        if (actual && actual.estado !== 'C') {
+          throw new AppError('CUENTA_YA_CONFIRMADA', 'La cuenta ya fue confirmada.', 409);
+        }
         throw new AppError(
           'CODIGO_CONFIRMACION_INVALIDADO',
           'El codigo de confirmacion se invalido por demasiados intentos fallidos.',

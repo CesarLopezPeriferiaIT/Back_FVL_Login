@@ -136,6 +136,27 @@ describe('validar', () => {
     expect(registro.invalidado).toBe(false);
     expect(registro.usadoEn).toBeNull();
   });
+  it('rechaza cuando el intento ya no puede registrarse', async () => {
+    const { servicio, usuario, banco } = preparar();
+    await servicio.generar(usuario.email);
+    vi.spyOn(banco.codigos, 'registrarIntentoFallido').mockResolvedValue(null);
+    await expect(servicio.validar(usuario.email, '999999')).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_INVALIDADO',
+      status: 429,
+    });
+    expect(banco.estado.codigos[0]!.intentos).toBe(0);
+  });
+  it('detecta el ultimo codigo vencido sin codigo vigente', async () => {
+    const { servicio, usuario, banco } = preparar();
+    await servicio.generar(usuario.email);
+    banco.estado.codigos[0]!.expiraEn = new Date(0);
+    vi.spyOn(banco.codigos, 'buscarNoConsumidoPorUsuario').mockResolvedValue(null);
+    await expect(servicio.validar(usuario.email, '000042')).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_VENCIDO',
+      status: 400,
+    });
+    expect(banco.estado.codigos[0]!.intentos).toBe(0);
+  });
   it('incrementa los intentos ante un codigo incorrecto', async () => {
     const { servicio, usuario, banco } = preparar();
     await servicio.generar(usuario.email);
@@ -145,6 +166,34 @@ describe('validar', () => {
     });
     expect(banco.estado.codigos[0]!.intentos).toBe(1);
     expect(banco.estado.codigos[0]!.invalidado).toBe(false);
+  });
+  it('invalida atomicamente en el quinto intento', async () => {
+    const { servicio, usuario, banco } = preparar();
+    const { codigo } = await servicio.generar(usuario.email);
+    for (let intento = 0; intento < 4; intento++) {
+      await expect(servicio.validar(usuario.email, '999999')).rejects.toMatchObject({
+        codigo: 'CODIGO_CONFIRMACION_INVALIDO',
+        status: 400,
+      });
+    }
+    const original = banco.codigos.registrarIntentoFallido.bind(banco.codigos);
+    let observado: { intentos: number; invalidado: boolean } | undefined;
+    vi.spyOn(banco.codigos, 'registrarIntentoFallido').mockImplementation(async (...args) => {
+      const resultado = await original(...args);
+      const registro = banco.estado.codigos[0]!;
+      observado = { intentos: registro.intentos, invalidado: registro.invalidado };
+      return resultado;
+    });
+    await expect(servicio.validar(usuario.email, '999999')).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_INVALIDADO',
+      status: 429,
+    });
+    expect(observado).toEqual({ intentos: 5, invalidado: true });
+    await expect(servicio.validar(usuario.email, codigo)).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_INVALIDADO',
+      status: 429,
+    });
+    expect(usuario.estado).toBe('C');
   });
   it('invalida el codigo en el quinto intento fallido', async () => {
     const { servicio, usuario, banco } = preparar();

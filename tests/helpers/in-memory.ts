@@ -59,10 +59,14 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       [...estado.codigos]
         .reverse()
         .find((c) => c.uuidUsuario === uuid && c.usadoEn === null && !c.invalidado) ?? null,
-    registrarIntentoFallido: async (uuid) => {
+    buscarUltimoPorUsuario: async (uuid) =>
+      [...estado.codigos].reverse().find((c) => c.uuidUsuario === uuid) ?? null,
+    registrarIntentoFallido: async (uuid, maxIntentos) => {
       const codigo = estado.codigos.find((c) => c.uuid === uuid);
-      if (!codigo) throw new Error('Codigo no encontrado');
-      return ++codigo.intentos;
+      if (!codigo || codigo.usadoEn !== null || codigo.invalidado) return null;
+      codigo.intentos++;
+      if (codigo.intentos >= maxIntentos) codigo.invalidado = true;
+      return { intentos: codigo.intentos, invalidado: codigo.invalidado };
     },
     marcarUsado: async (uuid) => {
       const codigo = estado.codigos.find((c) => c.uuid === uuid);

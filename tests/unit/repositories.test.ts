@@ -253,6 +253,13 @@ describe('mapeo de las filas devueltas', () => {
 });
 
 describe('repositorio de codigos de confirmacion', () => {
+  it('consulta el ultimo codigo sin filtrar su estado', async () => {
+    const { pool, consultas } = crearPoolFalso([[]]);
+    const repo = createCodigoConfirmacionRepository(pool);
+    expect(await repo.buscarUltimoPorUsuario('usuario')).toBeNull();
+    expect(consultas[0]?.sql).toContain('ORDER BY fecha_creacion DESC');
+    expect(consultas[0]?.sql).not.toContain('invalidado = 0');
+  });
   it('persiste, consulta y actualiza el codigo', async () => {
     const expiraEn = new Date('2020-01-01');
     const codigo = {
@@ -273,7 +280,14 @@ describe('repositorio de codigos de confirmacion', () => {
       invalidado: false,
       usado_en: null,
     };
-    const { pool, consultas } = crearPoolFalso([[], [fila], [], [{ intentos: 3 }], [], []]);
+    const { pool, consultas } = crearPoolFalso([
+      [],
+      [fila],
+      [],
+      [{ intentos: 3, invalidado: false }],
+      [],
+      [],
+    ]);
     const repo = createCodigoConfirmacionRepository(pool);
     await repo.guardar(codigo);
     expect(consultas[0]?.sql).toContain('INSERT INTO dbo.codigo_confirmacion');
@@ -283,7 +297,17 @@ describe('repositorio de codigos de confirmacion', () => {
     expect(consultas[1]?.sql).toContain('fecha_creacion DESC');
     expect(consultas[1]?.sql).not.toMatch(/expira_en\s*[><]/);
     expect(await repo.buscarNoConsumidoPorUsuario('usuario')).toBeNull();
-    expect(await repo.registrarIntentoFallido('codigo')).toBe(3);
+    expect(await repo.registrarIntentoFallido('codigo', 5)).toEqual({
+      intentos: 3,
+      invalidado: false,
+    });
+    expect(consultas[3]?.parametros.maxIntentos).toBe(5);
+    expect(consultas[3]?.sql).toContain(
+      'invalidado = CASE WHEN intentos + 1 >= @maxIntentos THEN 1 ELSE invalidado END',
+    );
+    expect(consultas[3]?.sql).toContain(
+      'WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0',
+    );
     expect(consultas[3]?.sql).toContain('intentos = intentos + 1');
     expect(consultas[3]?.sql).toContain('OUTPUT INSERTED.intentos');
     await repo.marcarUsado('codigo');

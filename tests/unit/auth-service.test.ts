@@ -135,6 +135,37 @@ describe('confirmacion con codigo', () => {
     expect(usuario.estado).toBe('C');
     expect(banco.estado.codigos[0]?.usadoEn).toBeNull();
   });
+  it('rechaza la segunda confirmacion concurrente como cuenta confirmada', async () => {
+    const { banco, authService } = crearServicio();
+    await authService.registrar({ email: 'carrera@ejemplo.co', password: PASSWORD, tyc: true });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const activar = banco.usuarios.activarConCodigoVigente.bind(banco.usuarios);
+    let liberar = (): void => {};
+    let avisar = (): void => {};
+    const espera = new Promise<void>((resolve) => {
+      liberar = resolve;
+    });
+    const iniciado = new Promise<void>((resolve) => {
+      avisar = resolve;
+    });
+    let primera = true;
+    banco.usuarios.activarConCodigoVigente = async (uuid, uuidCodigo) => {
+      if (primera) {
+        primera = false;
+        avisar();
+        await espera;
+      }
+      return activar(uuid, uuidCodigo);
+    };
+    const segunda = authService.confirmarCodigo({ email: 'carrera@ejemplo.co', codigo });
+    await iniciado;
+    const resultado = await authService.confirmarCodigo({ email: 'carrera@ejemplo.co', codigo });
+    expect(resultado.estado).toBe('A');
+    liberar();
+    await expect(segunda).rejects.toMatchObject({ codigo: 'CUENTA_YA_CONFIRMADA', status: 409 });
+    expect(banco.estado.usuarios[0]?.estado).toBe('A');
+    expect(banco.estado.codigos[0]?.usadoEn).not.toBeNull();
+  });
   it('activa la cuenta antes de consumir el codigo', async () => {
     const { banco, authService, config } = crearServicio();
     const usuario = insertarUsuario(banco, {
