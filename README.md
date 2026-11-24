@@ -41,7 +41,7 @@ bun install
 cp .env.example .env
 
 # Definir en el archivo .env lo que el compose exige de forma explicita:
-# JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, DB_USER y DB_PASSWORD.
+# JWT_ACCESS_SECRET, DB_USER y DB_PASSWORD.
 # El servidor de base de datos ya viene apuntado a la instancia desplegada en la plantilla.
 
 # Aplicar el esquema. Si la base de datos todavia no existe, el script la crea de forma
@@ -62,6 +62,13 @@ docker compose --profile local-db up -d sqlserver
 ```
 
 y definir `DB_SERVER=sqlserver` en el archivo `.env`.
+
+La confirmacion usa `CONFIRM_CODE_TTL_HOURS` (24 horas por defecto) y
+`CONFIRM_CODE_MAX_ATTEMPTS` (5 intentos fallidos por defecto). Sus limites de frecuencia son
+`RATE_LIMIT_CONFIRM_PER_IDENTIFIER` (10 intentos por correo) y `RATE_LIMIT_CONFIRM_PER_IP`
+(30 por IP), en la ventana de `RATE_LIMIT_WINDOW_MINUTES`. Ya no se usan
+`JWT_CONFIRM_SECRET`, `JWT_CONFIRM_TTL` ni `PUBLIC_BASE_URL`. La plantilla `.env.example`
+esta pendiente de actualizacion antes del proximo despliegue.
 
 En los ambientes de calidad y produccion la base de datos la crea el administrador de bases de
 datos y el rol de la aplicacion solo necesita permisos de lectura y escritura sobre ella. En ese
@@ -97,6 +104,19 @@ docker exec -it login-sqlserver-1 /opt/mssql-tools18/bin/sqlcmd   -S localhost -
 # Contra la instancia desplegada, desde cualquier equipo con las herramientas de sqlcmd.
 sqlcmd -S hpp-dev-sql.cul4syiguuqq.us-east-1.rds.amazonaws.com -U '<usuario>' -P '<senia>'   -C -d FVL_Login -i db/init/01-schema.sql
 ```
+
+## Confirmacion de correo
+
+Al completar el registro y aceptar los terminos y condiciones, la cuenta queda en estado `C`
+y se envia por correo un codigo de 6 digitos. Se almacena como hash argon2id en
+`dbo.codigo_confirmacion`, nunca en texto plano. La persona lo digita en la aplicacion, que
+envia `POST /auth/confirm-email` con `{"email": "...", "codigo": "123456"}`. La cuenta pasa
+a `A` y la respuesta es 200 con `Correo confirmado.`. El antiguo GET por enlace ya no existe.
+
+El codigo vence en 24 horas por defecto; el quinto intento fallido lo invalida y responde 429.
+El endpoint devuelve `USUARIO_NO_ENCONTRADO` (404), `CUENTA_YA_CONFIRMADA` (409),
+`CODIGO_CONFIRMACION_NO_EXISTE` (404), `CODIGO_CONFIRMACION_VENCIDO` (400),
+`CODIGO_CONFIRMACION_INVALIDO` (400) o `CODIGO_CONFIRMACION_INVALIDADO` (429).
 
 ## Verificacion
 

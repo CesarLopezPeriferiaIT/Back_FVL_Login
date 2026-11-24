@@ -4,7 +4,18 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 ## [Sin publicar]
 
+### Agregado
+
+-Tabla `dbo.codigo_confirmacion` para almacenar el hash argon2id del código de confirmación.
+-Variables `CONFIRM_CODE_TTL_HOURS`, `CONFIRM_CODE_MAX_ATTEMPTS`, `RATE_LIMIT_CONFIRM_PER_IDENTIFIER` y `RATE_LIMIT_CONFIRM_PER_IP` para configurar la vigencia, los intentos y los límites de frecuencia.
+
+### Cambiado
+
+-La confirmación de correo por enlace se reemplazó por un código OTP de 6 dígitos enviado por correo.
+
 ### Eliminado
+
+-El token JWT de confirmación y las variables `JWT_CONFIRM_SECRET` y `JWT_CONFIRM_TTL`.
 
 -Endpoints de contraseña `forgot-password`, `reset-password` (GET y POST) y `change-password`, con su lógica de servicio, token de reseteo, plantilla de correo y variables `JWT_RESET_SECRET` y `JWT_RESET_TTL`.
 -Endpoints de pin de acceso `/auth/pin/configurar`, `/auth/pin/verificar` y `/auth/pin/revocar`, con su servicio, repositorio, validadores y el script `db/init/02-pin-acceso.sql`. `/auth/me` ya no devuelve `pin_configurado`.
@@ -16,7 +27,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 -Núcleo del microservicio Express con TypeScript estricto.
 -Registro de cuentas, confirmación de correo, inicio, renovación y cierre de sesión, recuperación y cambio de contraseña y consulta de perfil.
--Hash de contraseñas argon2id y tokens JWT de acceso, confirmación y reseteo.
+-Hash de contraseñas argon2id y tokens JWT de acceso, confirmación y reseteo en la versión inicial; los tokens de confirmación y reseteo se retiraron posteriormente.
 -Refresh token rotativo almacenado como hash en la tabla LogSession.
 -Desactivación de cuentas en estado `D` tras diez intentos fallidos consecutivos.
 -API Key de cliente almacenada como hash SHA-256 y endpoint público de registro de instalaciones.
@@ -44,6 +55,9 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 -Sin mejoras respecto de una versión anterior: esta es la versión inicial.
 
 ## Pendientes
+
+-Prioritario: implementar el endpoint de reenvío del código de confirmación. Si el código vence o se invalida, la cuenta queda en estado `C` sin forma de obtener uno nuevo por la API.
+-Actualizar la plantilla `.env.example` antes del próximo despliegue: retirar `JWT_CONFIRM_SECRET` y `JWT_CONFIRM_TTL`, agregar `CONFIRM_CODE_TTL_HOURS`, `CONFIRM_CODE_MAX_ATTEMPTS`, `RATE_LIMIT_CONFIRM_PER_IDENTIFIER` y `RATE_LIMIT_CONFIRM_PER_IP`, y retirar `PUBLIC_BASE_URL`, que quedó sin uso.
 
 -CAPTCHA en los formularios de inicio de sesión y contraseña (lineamiento 3.8).
 -Endpoint administrativo para desbloquear cuentas en estado `D` (control de intentos, lineamiento 1.6.4): actualmente el operador autorizado debe usar el procedimiento `db/scripts/unlock-user.sql` directamente en la base de datos.

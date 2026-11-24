@@ -47,11 +47,11 @@ sequenceDiagram
     Persona->>App: Introducir correo, contraseña y aceptación de términos
     App->>Backend: POST /auth/register con X-API-Key, email, password y tyc
     alt tyc es true
-        Backend->>Correo: Enviar enlace de confirmación
+        Backend->>Correo: Enviar código de confirmación de seis dígitos
         Backend->>App: 201, usuario en C y correo_confirmacion_enviado true
-        Correo->>Persona: Enlace con token JWT de 24 horas y un solo uso
-        Persona->>App: Abrir enlace
-        App->>Backend: GET /auth/confirm-email con token y X-API-Key
+        Correo->>Persona: Código de seis dígitos
+        Persona->>App: Digitar código
+        App->>Backend: POST /auth/confirm-email con email, codigo y X-API-Key
         Backend->>App: 200, usuario en A
     else tyc es false
         Backend->>App: 201, usuario en C y correo_confirmacion_enviado false
@@ -59,7 +59,7 @@ sequenceDiagram
     end
 ```
 
-El enlace apunta a `GET /backend/dev/v1/auth/confirm-email?token=...`, pero esa ruta exige `X-API-Key`: un navegador que lo abra directamente no puede aportar la cabecera. Por eso el dominio del backend se declara como enlace de app y enlace universal: el correo abre la aplicacion y es la aplicacion, que ya conoce la API Key, quien llama al backend. El equipo movil entrega para eso dos archivos que el dominio debe servir en `/.well-known/`, con la estructura indicada en `nginx/well-known/README.md`. Mientras esa reserva no exista, el token puede enviarse con `POST /auth/confirm-email`. Un enlace vencido o usado responde `400 TOKEN_INVALIDO`; una cuenta ya confirmada puede responder `409 CUENTA_YA_CONFIRMADA`.
+El código se envía en el cuerpo JSON `{"email":"usuario@example.org","codigo":"123456"}`, nunca en la URL. Tiene vigencia de 24 horas (`CONFIRM_CODE_TTL_HOURS`); el quinto fallo lo invalida y responde 429 (`CONFIRM_CODE_MAX_ATTEMPTS`, por defecto 5). Se persiste hasheado con argon2id en `dbo.codigo_confirmacion`, nunca en texto plano. El registro dispara el envío: quien integra el flujo llama a `generar` del servicio de códigos, que lo genera y persiste, y entrega después el código al servicio de correo.
 
 ## 3. Inicio, uso, renovación y cierre de sesión
 
@@ -125,7 +125,7 @@ sequenceDiagram
     end
 ```
 
-La respuesta genérica corresponde a solicitudes válidas; una entrada inválida puede devolver `400 VALIDACION_FALLIDA`. La validación del enlace con `GET` es opcional y exige la API Key, igual que la confirmación: se aplica el mismo mecanismo de enlace de app y universal. Una contraseña actual incorrecta devuelve `400 PASSWORD_ACTUAL_INVALIDA`.
+La respuesta genérica corresponde a solicitudes válidas; una entrada inválida puede devolver `400 VALIDACION_FALLIDA`. La validación del enlace con `GET` es opcional y exige la API Key: un navegador no puede aportar esa cabecera. El dominio del backend se declara como enlace de app y enlace universal para que la aplicación intercepte el enlace y llame al backend con la clave. El equipo móvil entrega los dos archivos que el dominio debe servir en `/.well-known/`, según `nginx/well-known/README.md`. Una contraseña actual incorrecta devuelve `400 PASSWORD_ACTUAL_INVALIDA`.
 
 ## 5. Pin de acceso
 
@@ -213,7 +213,7 @@ sospecha de que alguien conoce el pin.
 ```mermaid
 stateDiagram-v2
     [*] --> C: POST /auth/register
-    C --> A: GET o POST /auth/confirm-email
+    C --> A: POST /auth/confirm-email con código
     A --> D: POST /auth/login, diez fallos consecutivos
     D --> A: Desbloqueo manual en base de datos
     D --> I: Desbloqueo manual en base de datos
@@ -230,8 +230,7 @@ Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key`
 | POST   | `/installations/register` | Público               | Primer arranque o clave inválida/revocada      | `nombre`, `tipo_cliente`                    | 201, `data.api_key` una sola vez.               |
 | POST   | `/auth/register`          | `auth:register`       | Crear cuenta                                   | `email`, `password`, `tyc`                  | 201, `usuario` y `correo_confirmacion_enviado`. |
 | POST   | `/auth/login`             | `auth:login`          | Iniciar sesión                                 | `email`, `password`                         | 200, tokens y usuario.                          |
-| POST   | `/auth/confirm-email`     | `auth:confirm-email`  | Confirmar correo desde la app                  | `token`                                     | 200, usuario activo.                            |
-| GET    | `/auth/confirm-email`     | `auth:confirm-email`  | Abrir enlace de confirmación                   | Consulta `token`                            | 200, usuario activo.                            |
+| POST   | `/auth/confirm-email`     | `auth:confirm-email`  | Confirmar correo desde la app                  | `email`, `codigo`                           | 200, usuario activo.                            |
 | POST   | `/auth/refresh`           | `auth:refresh`        | Renovar sesión                                 | `refresh_token`                             | 200, tokens nuevos y usuario.                   |
 | POST   | `/auth/logout`            | `auth:logout`         | Cerrar sesión                                  | Ninguno; Bearer                             | 200, sesión revocada.                           |
 | POST   | `/auth/forgot-password`   | `auth:password-reset` | Solicitar recuperación                         | `email`                                     | 200 genérico para solicitud válida.             |
@@ -254,6 +253,9 @@ Los umbrales y la ventana son configurables; estos son los valores predeterminad
 | Inicio por identificador | 10 intentos fallidos para el mismo correo en 15 minutos activan `429 RATE_LIMIT_EXCEDIDO`.                                                     |
 | Inicio por IP            | 50 intentos por IP en 15 minutos.                                                                                                              |
 | Registro por IP          | 20 registros por IP en 15 minutos.                                                                                                             |
+| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en `RATE_LIMIT_WINDOW_MINUTES`.                                                              |
+| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en `RATE_LIMIT_WINDOW_MINUTES`.                                                                      |
+| Código de confirmación   | Vigencia de 24 horas; el quinto fallo invalida el código y responde 429.                                                                       |
 | Desactivación            | 10 fallos consecutivos dejan la cuenta en `D`; después el login responde `403 CUENTA_DESACTIVADA`. Es un control distinto del límite temporal. |
 | Recuperación de `D`      | Manual en base de datos con `db/scripts/unlock-user.sql`; no existe endpoint administrativo.                                                   |
 
@@ -261,30 +263,34 @@ Los umbrales y la ventana son configurables; estos son los valores predeterminad
 
 Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado.
 
-| Código                     | HTTP      | Acción de la app                                                                        |
-| -------------------------- | --------- | --------------------------------------------------------------------------------------- |
-| `VALIDACION_FALLIDA`       | 400       | Mostrar los detalles y corregir la entrada.                                             |
-| `USUARIO_YA_EXISTE`        | 409       | Informar que el correo ya está registrado.                                              |
-| `CREDENCIALES_INVALIDAS`   | 401       | Solicitar corrección sin reintentos automáticos.                                        |
-| `PASSWORD_ACTUAL_INVALIDA` | 400       | Solicitar la contraseña actual correcta.                                                |
-| `TOKEN_INVALIDO`           | 400 o 401 | En enlaces, solicitar uno nuevo; en Bearer, comprobar expiración y renovar si procede.  |
-| `TOKEN_REQUERIDO`          | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión.              |
-| `SESION_INVALIDA`          | 401       | Descartar los tokens y solicitar inicio de sesión.                                      |
-| `CUENTA_POR_CONFIRMAR`     | 403       | Indicar que debe confirmar el correo.                                                   |
-| `CUENTA_INACTIVA`          | 403       | Indicar que la cuenta está inactiva y solicitar soporte.                                |
-| `CUENTA_DESACTIVADA`       | 403       | Solicitar soporte para desbloqueo manual.                                               |
-| `CUENTA_NO_ACTIVA`         | 403       | En renovación, informar que la cuenta no está activa y solicitar soporte.               |
-| `CUENTA_YA_CONFIRMADA`     | 409       | Informar que la cuenta ya no está pendiente de confirmación.                            |
-| `USUARIO_NO_ENCONTRADO`    | 404       | Informar y solicitar soporte según el flujo.                                            |
-| `API_KEY_REQUERIDA`        | 401       | Comprobar y enviar la clave guardada; registrar instalación si falta.                   |
-| `API_KEY_INVALIDA`         | 401       | Borrar la clave y registrar la instalación de nuevo.                                    |
-| `API_KEY_REVOCADA`         | 401       | Borrar la clave y registrar la instalación de nuevo.                                    |
-| `API_KEY_SIN_PERMISO`      | 403       | Revisar tipo de cliente y alcance con backend.                                          |
-| `RATE_LIMIT_EXCEDIDO`      | 429       | Detener reintentos y solicitar que espere antes de volver a intentar.                   |
-| `ERROR_INTERNO`            | 500       | Informar del fallo y permitir reintentar más tarde.                                     |
-| `PIN_INVALIDO`             | 401       | El pin de acceso no es correcto.                                                        |
-| `PIN_REVOCADO`             | 403       | El pin se revoco por intentos fallidos; hay que volver a iniciar sesion y configurarlo. |
-| `PIN_NO_CONFIGURADO`       | 404       | La cuenta no tiene ningun pin de acceso configurado.                                    |
+| Código                           | HTTP      | Acción de la app                                                                        |
+| -------------------------------- | --------- | --------------------------------------------------------------------------------------- |
+| `VALIDACION_FALLIDA`             | 400       | Mostrar los detalles y corregir la entrada.                                             |
+| `USUARIO_YA_EXISTE`              | 409       | Informar que el correo ya está registrado.                                              |
+| `CREDENCIALES_INVALIDAS`         | 401       | Solicitar corrección sin reintentos automáticos.                                        |
+| `PASSWORD_ACTUAL_INVALIDA`       | 400       | Solicitar la contraseña actual correcta.                                                |
+| `TOKEN_INVALIDO`                 | 400 o 401 | En enlaces, solicitar uno nuevo; en Bearer, comprobar expiración y renovar si procede.  |
+| `TOKEN_REQUERIDO`                | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión.              |
+| `SESION_INVALIDA`                | 401       | Descartar los tokens y solicitar inicio de sesión.                                      |
+| `CUENTA_POR_CONFIRMAR`           | 403       | Indicar que debe confirmar el correo.                                                   |
+| `CUENTA_INACTIVA`                | 403       | Indicar que la cuenta está inactiva y solicitar soporte.                                |
+| `CUENTA_DESACTIVADA`             | 403       | Solicitar soporte para desbloqueo manual.                                               |
+| `CUENTA_NO_ACTIVA`               | 403       | En renovación, informar que la cuenta no está activa y solicitar soporte.               |
+| `CUENTA_YA_CONFIRMADA`           | 409       | Informar que la cuenta ya no está pendiente de confirmación.                            |
+| `CODIGO_CONFIRMACION_NO_EXISTE`  | 404       | Informar que no existe código.                                                          |
+| `CODIGO_CONFIRMACION_VENCIDO`    | 400       | Informar que el código venció.                                                          |
+| `CODIGO_CONFIRMACION_INVALIDO`   | 400       | Solicitar corrección del código.                                                        |
+| `CODIGO_CONFIRMACION_INVALIDADO` | 429       | Informar que el código fue invalidado.                                                  |
+| `USUARIO_NO_ENCONTRADO`          | 404       | Informar y solicitar soporte según el flujo.                                            |
+| `API_KEY_REQUERIDA`              | 401       | Comprobar y enviar la clave guardada; registrar instalación si falta.                   |
+| `API_KEY_INVALIDA`               | 401       | Borrar la clave y registrar la instalación de nuevo.                                    |
+| `API_KEY_REVOCADA`               | 401       | Borrar la clave y registrar la instalación de nuevo.                                    |
+| `API_KEY_SIN_PERMISO`            | 403       | Revisar tipo de cliente y alcance con backend.                                          |
+| `RATE_LIMIT_EXCEDIDO`            | 429       | Detener reintentos y solicitar que espere antes de volver a intentar.                   |
+| `ERROR_INTERNO`                  | 500       | Informar del fallo y permitir reintentar más tarde.                                     |
+| `PIN_INVALIDO`                   | 401       | El pin de acceso no es correcto.                                                        |
+| `PIN_REVOCADO`                   | 403       | El pin se revoco por intentos fallidos; hay que volver a iniciar sesion y configurarlo. |
+| `PIN_NO_CONFIGURADO`             | 404       | La cuenta no tiene ningun pin de acceso configurado.                                    |
 
 ## Reglas para la app móvil
 
@@ -294,7 +300,7 @@ Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado
 - El pin se compara **en el dispositivo** contra el verificador local guardado en `expo-secure-store`. No lo envie al servidor para desbloquear la aplicacion: solo se envia cuando la app necesita una segunda confirmacion en una operacion sensible.
 - Renueve preventivamente antes de que venza el acceso, según `expires_in`; el margen concreto no está definido. Evite renovaciones simultáneas para no competir por el mismo refresh rotativo. Guarde el nuevo refresh y descarte el anterior inmediatamente.
 - Un `401 TOKEN_INVALIDO` en una ruta con Bearer puede indicar acceso vencido, pero no garantiza esa causa. Compruebe la vigencia y renueve si corresponde; no interprete un fallo de API Key como fallo de usuario. Un `401 SESION_INVALIDA` de `/auth/refresh` indica refresh inválido, revocado o vencido: descarte ambos tokens y solicite inicio de sesión.
-- La API Key identifica a la instalación; el acceso identifica a la persona. No sustituya uno por otro. Los tokens de correo son de un solo uso y no son tokens de acceso.
+- La API Key identifica a la instalación; el acceso identifica a la persona. No sustituya uno por otro. El token de reseteo no es un token de acceso.
 
 ## Pendientes de integración
 
@@ -302,4 +308,4 @@ Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado
 - Segundo factor de autenticación, lineamiento 3.8: pendiente; no hay flujo definido en este servicio.
 - OAuth 2.0 con PKCE y apertura del navegador del sistema, lineamiento 1.6.3: pendiente; el flujo actual es login propio con refresh.
 - Desbloqueo administrativo de cuentas `D`: pendiente como endpoint; actualmente requiere operación manual en base de datos.
-- Publicación de los archivos de verificación de enlaces: el equipo de la aplicación móvil debe entregar `assetlinks.json` y `apple-app-site-association` con el contenido indicado en `nginx/well-known/README.md`, y operación debe publicarlos en el dominio del backend. Hasta entonces, el enlace de confirmación y el de reseteo abiertas en el navegador responden `401 API_KEY_REQUERIDA`.
+- Publicación de los archivos de verificación de enlaces: el equipo de la aplicación móvil debe entregar `assetlinks.json` y `apple-app-site-association` con el contenido indicado en `nginx/well-known/README.md`, y operación debe publicarlos en el dominio del backend. Hasta entonces, el enlace de reseteo abierto en el navegador responde `401 API_KEY_REQUERIDA`.
