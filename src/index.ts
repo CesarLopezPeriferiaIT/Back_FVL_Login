@@ -16,6 +16,7 @@ import { createMailService } from './domain/mail-service.js';
 import { createPasswordHasher } from './domain/password-hasher.js';
 import { createTokenService } from './domain/token-service.js';
 import { createApiKeyRepository } from './infrastructure/database/api-key.repository.js';
+import { createCatalogoRepository } from './infrastructure/database/catalogo.repository.js';
 import { closePool, createPool } from './infrastructure/database/pool.js';
 import { createLogSessionRepository } from './infrastructure/database/log-session.repository.js';
 import { createUsuarioRepository } from './infrastructure/database/usuario.repository.js';
@@ -45,6 +46,7 @@ const main = async (): Promise<void> => {
     authService,
     apiKeyService: createApiKeyService(createApiKeyRepository(pool)),
     tokenService: createTokenService(config),
+    catalogoRepository: createCatalogoRepository(pool),
   });
 
   const servidor = app.listen(config.port, () => {

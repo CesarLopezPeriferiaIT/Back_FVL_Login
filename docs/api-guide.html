@@ -134,7 +134,7 @@
               <td>
                 <code>auth:register</code>, <code>auth:login</code>,
                 <code>auth:confirm-email</code>, <code>auth:refresh</code>,
-                <code>auth:logout</code>, <code>auth:password-reset</code>
+                <code>auth:logout</code>, <code>catalog:read</code>
               </td>
               <td>mobile, web-bff</td>
             </tr>
@@ -198,7 +198,7 @@ Content-Type: application/json
 {"nombre":"Aplicación móvil","tipo_cliente":"mobile"}
 
 HTTP/1.1 201 Created
-{"message":"Instalacion registrada.","error":null,"code":0,"data":{"api_key":"CLAVE_EJEMPLO","tipo_cliente":"mobile","permisos":["auth:register","auth:login","auth:confirm-email","auth:refresh","auth:logout","auth:password-reset","auth:me"],"fecha_creacion":"2026-11-11T12:00:00.000Z"}}</code></pre>
+{"message":"Instalacion registrada.","error":null,"code":0,"data":{"api_key":"CLAVE_EJEMPLO","tipo_cliente":"mobile","permisos":["auth:register","auth:login","auth:confirm-email","auth:refresh","auth:logout","auth:me","catalog:read"],"fecha_creacion":"2026-11-11T12:00:00.000Z"}}</code></pre>
           <p>Errores: <code>VALIDACION_FALLIDA</code>, <code>ERROR_INTERNO</code>.</p>
         </section>
         <section>
@@ -237,7 +237,7 @@ Content-Type: application/json
 {"email":"usuario@example.org","password":"Ejemplo123"}
 
 HTTP/1.1 200 OK
-{"message":"Sesion iniciada.","error":null,"code":0,"data":{"token_acceso":"TOKEN_ACCESO","token_refresh":"TOKEN_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:00:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"pin_configurado":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
+{"message":"Sesion iniciada.","error":null,"code":0,"data":{"token_acceso":"TOKEN_ACCESO","token_refresh":"TOKEN_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:00:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
           <p>
             Errores adicionales: <code>VALIDACION_FALLIDA</code>,
             <code>CREDENCIALES_INVALIDAS</code>, <code>CUENTA_POR_CONFIRMAR</code>,
@@ -306,134 +306,6 @@ HTTP/1.1 200 OK
           </p>
         </section>
         <section>
-          <h3>POST /backend/dev/v1/auth/forgot-password</h3>
-          <p>
-            Alcance <code>auth:password-reset</code>; cabeceras <code>X-API-Key</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code>,
-            cadena de correo válida. Para una solicitud válida responde 200 con mensaje genérico,
-            exista o no la cuenta.
-          </p>
-          <pre><code>POST /backend/dev/v1/auth/forgot-password HTTP/1.1
-X-API-Key: CLAVE_EJEMPLO
-Content-Type: application/json
-
-{"email":"usuario@example.org"}
-
-HTTP/1.1 200 OK
-{"message":"Si la cuenta existe, recibira instrucciones.","error":null,"code":0,"data":null}</code></pre>
-          <p>Errores adicionales: <code>VALIDACION_FALLIDA</code>.</p>
-        </section>
-        <section>
-          <h3>POST /backend/dev/v1/auth/reset-password</h3>
-          <p>
-            Alcance <code>auth:password-reset</code>; cabeceras <code>X-API-Key</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>token</code> y
-            <code>nueva_password</code>, cadenas. Revoca las sesiones del usuario. También acepta
-            <code>GET /backend/dev/v1/auth/reset-password?token=...</code> con
-            <code>X-API-Key</code> y sin cuerpo: valida el enlace sin modificar la contraseña y
-            responde <code>{"email":"usuario@example.org"}</code> en data.
-          </p>
-          <pre><code>POST /backend/dev/v1/auth/reset-password HTTP/1.1
-X-API-Key: CLAVE_EJEMPLO
-Content-Type: application/json
-
-{"token":"TOKEN_RESETEO","nueva_password":"NuevaClave123"}
-
-HTTP/1.1 200 OK
-{"message":"Contrasena actualizada.","error":null,"code":0,"data":null}</code></pre>
-          <p>Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>TOKEN_INVALIDO</code>.</p>
-        </section>
-        <section>
-          <h3>POST /backend/dev/v1/auth/change-password</h3>
-          <p>
-            Alcance <code>auth:password-reset</code>; cabeceras <code>X-API-Key</code>,
-            <code>Authorization: Bearer TOKEN_ACCESO</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio:
-            <code>password_actual</code> y <code>nueva_password</code>, cadenas. Revoca las demás
-            sesiones.
-          </p>
-          <pre><code>POST /backend/dev/v1/auth/change-password HTTP/1.1
-X-API-Key: CLAVE_EJEMPLO
-Authorization: Bearer TOKEN_ACCESO
-Content-Type: application/json
-
-{"password_actual":"Ejemplo123","nueva_password":"NuevaClave123"}
-
-HTTP/1.1 200 OK
-{"message":"Contrasena actualizada.","error":null,"code":0,"data":null}</code></pre>
-          <p>
-            Errores adicionales: <code>VALIDACION_FALLIDA</code>,
-            <code>PASSWORD_ACTUAL_INVALIDA</code>, <code>USUARIO_NO_ENCONTRADO</code>.
-          </p>
-        </section>
-        <section>
-          <h3>POST /backend/dev/v1/auth/pin/configurar</h3>
-          <p>
-            Alcance <code>auth:pin</code>; cabeceras <code>X-API-Key</code>,
-            <code>Authorization: Bearer TOKEN_ACCESO</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>pin</code>, de 4
-            a 12 dígitos, y <code>dispositivo</code>, cadena que identifica el equipo. Configura o
-            cambia el pin de acceso de la cuenta y revoca el anterior. El pin se guarda cifrado con
-            argon2id y no se vuelve a mostrar.
-          </p>
-          <pre><code>POST /backend/dev/v1/auth/pin/configurar HTTP/1.1
-X-API-Key: CLAVE_EJEMPLO
-Authorization: Bearer TOKEN_ACCESO
-Content-Type: application/json
-
-{"pin":"482915","dispositivo":"iphone-de-la-paciente"}
-
-HTTP/1.1 201 Created
-{"message":"Pin de acceso configurado.","error":null,"code":0,"data":{"pin_configurado":true}}</code></pre>
-          <p>
-            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>TOKEN_REQUERIDO</code>,
-            <code>USUARIO_NO_ENCONTRADO</code>.
-          </p>
-        </section>
-        <section>
-          <h3>POST /backend/dev/v1/auth/pin/verificar</h3>
-          <p>
-            Alcance <code>auth:pin</code>; cabeceras <code>X-API-Key</code>,
-            <code>Authorization: Bearer TOKEN_ACCESO</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>pin</code>, de 4
-            a 12 dígitos. Verifica el pin de la cuenta y sirve como segunda confirmación en las
-            operaciones sensibles. Tras cinco intentos fallidos el pin queda revocado y la cuenta
-            sigue activa, porque el bloqueo de la cuenta es para el acceso con contraseña.
-          </p>
-          <pre><code>POST /backend/dev/v1/auth/pin/verificar HTTP/1.1
-X-API-Key: CLAVE_EJEMPLO
-Authorization: Bearer TOKEN_ACCESO
-Content-Type: application/json
-
-{"pin":"482915"}
-
-HTTP/1.1 200 OK
-{"message":"Pin verificado.","error":null,"code":0,"data":{"verificado":true}}</code></pre>
-          <p>
-            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>PIN_INVALIDO</code>,
-            <code>PIN_REVOCADO</code>, <code>PIN_NO_CONFIGURADO</code>,
-            <code>RATE_LIMIT_EXCEDIDO</code>.
-          </p>
-        </section>
-        <section>
-          <h3>POST /backend/dev/v1/auth/pin/revocar</h3>
-          <p>
-            Alcance <code>auth:pin</code>; cabeceras <code>X-API-Key</code> y
-            <code>Authorization: Bearer TOKEN_ACCESO</code>. Sin cuerpo. Revoca el pin de la cuenta.
-            El cliente debe borrar el verificador que guarda en el dispositivo y volver a pedir el
-            pin en la siguiente apertura.
-          </p>
-          <pre><code>POST /backend/dev/v1/auth/pin/revocar HTTP/1.1
-X-API-Key: CLAVE_EJEMPLO
-Authorization: Bearer TOKEN_ACCESO
-
-HTTP/1.1 200 OK
-{"message":"Pin de acceso revocado.","error":null,"code":0,"data":{"pin_revocado":true}}</code></pre>
-          <p>
-            Errores adicionales: <code>TOKEN_REQUERIDO</code>, <code>USUARIO_NO_ENCONTRADO</code>.
-          </p>
-        </section>
-        <section>
           <h3>GET /backend/dev/v1/auth/me</h3>
           <p>
             Alcance <code>auth:me</code>; cabeceras <code>X-API-Key</code> y
@@ -446,6 +318,53 @@ Authorization: Bearer TOKEN_ACCESO
 HTTP/1.1 200 OK
 {"message":"Perfil consultado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
           <p>Errores adicionales: <code>USUARIO_NO_ENCONTRADO</code>.</p>
+        </section>
+        <section>
+          <h3>GET /backend/dev/v1/catalog/get-roles</h3>
+          <p>
+            Alcance <code>catalog:read</code>; cabecera <code>X-API-Key</code>; sin cuerpo y
+            <strong>sin Bearer</strong>, para poder consultarlo durante el registro. Devuelve los
+            roles del personal de salud con su área de servicio, ordenados por código numérico.
+          </p>
+          <pre><code>GET /backend/dev/v1/catalog/get-roles HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+
+HTTP/1.1 200 OK
+{"message":"Roles consultados.","error":null,"code":0,"data":{"roles":[{"codigo":1,"nombre":"Medico General","area_servicio":"Urgencias"},{"codigo":2,"nombre":"Enfermero","area_servicio":"Consulta Externa"}]}}</code></pre>
+          <p>Errores: los comunes de API Key y <code>ERROR_INTERNO</code>.</p>
+        </section>
+        <section>
+          <h3>GET /backend/dev/v1/catalog/get-departments</h3>
+          <p>
+            Alcance <code>catalog:read</code>; cabecera <code>X-API-Key</code>; sin cuerpo ni
+            Bearer. Devuelve los 33 departamentos según el DANE, ordenados por código. El código es
+            texto de 2 dígitos y conserva el cero a la izquierda.
+          </p>
+          <pre><code>GET /backend/dev/v1/catalog/get-departments HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+
+HTTP/1.1 200 OK
+{"message":"Departamentos consultados.","error":null,"code":0,"data":{"departamentos":[{"codigo":"05","nombre":"ANTIOQUIA"},{"codigo":"76","nombre":"VALLE DEL CAUCA"}]}}</code></pre>
+          <p>Errores: los comunes de API Key y <code>ERROR_INTERNO</code>.</p>
+        </section>
+        <section>
+          <h3>GET /backend/dev/v1/catalog/get-municipalities</h3>
+          <p>
+            Alcance <code>catalog:read</code>; cabecera <code>X-API-Key</code>; sin cuerpo ni
+            Bearer. Devuelve los municipios según el DANE, ordenados por código. El código es el
+            completo de 5 dígitos como texto (departamento más municipio). Parámetro de consulta
+            opcional <code>department</code>: código DANE de 2 dígitos para filtrar por
+            departamento; sin él devuelve los 1.120 municipios del país.
+          </p>
+          <pre><code>GET /backend/dev/v1/catalog/get-municipalities?department=76 HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+
+HTTP/1.1 200 OK
+{"message":"Municipios consultados.","error":null,"code":0,"data":{"municipios":[{"codigo":"76001","nombre":"CALI","codigo_departamento":"76"},{"codigo":"76109","nombre":"BUENAVENTURA","codigo_departamento":"76"}]}}</code></pre>
+          <p>
+            Errores adicionales: <code>VALIDACION_FALLIDA</code> si <code>department</code> no son 2
+            dígitos.
+          </p>
         </section>
       </section>
       <section>
@@ -527,14 +446,6 @@ HTTP/1.1 200 OK
               <td>Credenciales incorrectas.</td>
             </tr>
             <tr>
-              <td>PASSWORD_ACTUAL_INVALIDA</td>
-              <td>400</td>
-              <td>
-                La contrasena actual no es correcta en el cambio de contrasena. El usuario ya esta
-                autenticado, por lo que se trata de un dato invalido del formulario.
-              </td>
-            </tr>
-            <tr>
               <td>CUENTA_POR_CONFIRMAR</td>
               <td>403</td>
               <td>Correo pendiente de confirmación.</td>
@@ -605,21 +516,6 @@ HTTP/1.1 200 OK
               <td>No existe la cuenta asociada.</td>
             </tr>
             <tr>
-              <td>PIN_INVALIDO</td>
-              <td>401</td>
-              <td>El pin de acceso no es correcto.</td>
-            </tr>
-            <tr>
-              <td>PIN_REVOCADO</td>
-              <td>403</td>
-              <td>El pin se revocó por intentos fallidos.</td>
-            </tr>
-            <tr>
-              <td>PIN_NO_CONFIGURADO</td>
-              <td>404</td>
-              <td>La cuenta no tiene ningún pin de acceso configurado.</td>
-            </tr>
-            <tr>
               <td>ERROR_INTERNO</td>
               <td>500</td>
               <td>Error inesperado.</td>
@@ -652,12 +548,12 @@ HTTP/1.1 200 OK
               </td>
             </tr>
             <tr>
-              <td>JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET</td>
+              <td>JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET</td>
               <td>Secretos independientes de firma, mínimo 32 caracteres.</td>
             </tr>
             <tr>
-              <td>JWT_ACCESS_TTL, JWT_CONFIRM_TTL, JWT_RESET_TTL</td>
-              <td>Vigencia de acceso, confirmación y reseteo; ejemplos: 15m, 24h, 30m.</td>
+              <td>JWT_ACCESS_TTL, JWT_CONFIRM_TTL</td>
+              <td>Vigencia de acceso y confirmación; ejemplos: 15m, 24h.</td>
             </tr>
             <tr>
               <td>JWT_ISSUER, JWT_AUDIENCE, REFRESH_TOKEN_TTL_DAYS</td>

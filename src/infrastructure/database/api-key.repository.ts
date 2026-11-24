@@ -37,6 +37,7 @@ const PERMISOS_VALIDOS: readonly Permiso[] = [
   'auth:refresh',
   'auth:logout',
   'auth:me',
+  'catalog:read',
 ];
 
 const parsearPermisos = (valor: string): Permiso[] =>

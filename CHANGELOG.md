@@ -4,6 +4,13 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 ## [Sin publicar]
 
+### Agregado
+
+-Catálogos geográficos DANE: tablas `catalogo_departamento` (33) y `catalogo_municipio` (1.120) en `db/init/02-catalogos-geograficos.sql`, con códigos `VARCHAR`.
+-Endpoints `GET /catalog/get-departments` y `GET /catalog/get-municipalities?department=NN`, protegidos solo con API Key (alcance `catalog:read`), sin token de usuario para poder usarse en el registro. Las API Key emitidas antes no tienen el alcance y deben reemitirse en `/installations/register`.
+
+-Catálogo de roles: tabla `catalogo_rol` (5 filas, código numérico) en `db/init/03-catalogo-rol.sql` y endpoint `GET /catalog/get-roles`, con el mismo alcance `catalog:read`.
+
 ### Eliminado
 
 -Endpoints de contraseña `forgot-password`, `reset-password` (GET y POST) y `change-password`, con su lógica de servicio, token de reseteo, plantilla de correo y variables `JWT_RESET_SECRET` y `JWT_RESET_TTL`.

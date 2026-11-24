@@ -9,9 +9,12 @@
  */
 import type {
   ApiKey,
+  Departamento,
   EstadoUsuario,
   LogSession,
+  Municipio,
   Permiso,
+  Rol,
   TipoCliente,
   Usuario,
 } from './entities.js';
@@ -61,6 +64,13 @@ export interface ApiKeyRepository {
   findByHash(keyHash: string): Promise<ApiKey | null>;
   create(nuevaApiKey: NuevaApiKey): Promise<ApiKey>;
   registrarUso(uuid: string): Promise<void>;
+}
+
+/** Acceso de solo lectura a los catalogos (geograficos y de roles). */
+export interface CatalogoRepository {
+  listarRoles(): Promise<Rol[]>;
+  listarDepartamentos(): Promise<Departamento[]>;
+  listarMunicipios(codigoDepartamento?: string): Promise<Municipio[]>;
 }
 
 /** Mensaje de correo saliente. */

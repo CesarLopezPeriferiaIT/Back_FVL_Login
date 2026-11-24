@@ -32,6 +32,7 @@ const app = createApp({
   config,
   logger,
   tokenService: tokens,
+  catalogoRepository: banco.catalogos,
   apiKeyService: createApiKeyService(banco.apiKeys),
   authService: createAuthService({
     usuarios: banco.usuarios,
@@ -210,6 +211,54 @@ describe('API HTTP', () => {
       .auth(acceso, { type: 'bearer' })
       .expect(200);
     expect(salida.headers['clear-site-data']).toBeDefined();
+  });
+
+  it('sirve los catalogos solo con API Key, sin token de usuario', async () => {
+    const roles = `${base}/catalog/get-roles`;
+    await request(app).get(roles).expect(401);
+    const listaRoles = await request(app).get(roles).set('X-API-Key', clave).expect(200);
+    expect(
+      z
+        .object({
+          data: z.object({
+            roles: z.array(
+              z.object({ codigo: z.number(), nombre: z.string(), area_servicio: z.string() }),
+            ),
+          }),
+        })
+        .parse(listaRoles.body as unknown).data.roles[0],
+    ).toEqual({ codigo: 1, area_servicio: 'Urgencias', nombre: 'Medico General' });
+    const departamentos = `${base}/catalog/get-departments`;
+    const municipios = `${base}/catalog/get-municipalities`;
+    await request(app).get(departamentos).expect(401);
+    await request(app).get(departamentos).set('X-API-Key', 'sin-permisos').expect(403);
+    const lista = await request(app).get(departamentos).set('X-API-Key', clave).expect(200);
+    expect(
+      z
+        .object({ data: z.object({ departamentos: z.array(z.object({ codigo: z.string() })) }) })
+        .parse(lista.body as unknown).data.departamentos,
+    ).toHaveLength(2);
+    const todos = await request(app).get(municipios).set('X-API-Key', clave).expect(200);
+    const esquema = z.object({
+      data: z.object({
+        municipios: z.array(z.object({ codigo: z.string(), codigo_departamento: z.string() })),
+      }),
+    });
+    expect(esquema.parse(todos.body as unknown).data.municipios).toHaveLength(3);
+    const valle = await request(app)
+      .get(municipios)
+      .query({ department: '76' })
+      .set('X-API-Key', clave)
+      .expect(200);
+    expect(esquema.parse(valle.body as unknown).data.municipios.map((m) => m.codigo)).toEqual([
+      '76001',
+      '76109',
+    ]);
+    await request(app)
+      .get(municipios)
+      .query({ department: '7' })
+      .set('X-API-Key', clave)
+      .expect(400);
   });
 
   it('limita por correo normalizado despues de diez intentos', async () => {

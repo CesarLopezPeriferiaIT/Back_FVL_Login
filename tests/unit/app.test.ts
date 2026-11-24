@@ -42,6 +42,7 @@ const construirApp = (config: AppConfig): Express => {
     config,
     logger,
     tokenService: tokens,
+    catalogoRepository: banco.catalogos,
     apiKeyService: createApiKeyService(banco.apiKeys),
     authService: createAuthService({
       usuarios: banco.usuarios,

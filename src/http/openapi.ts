@@ -288,6 +288,10 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
       { name: 'Servicio', description: 'Informacion y estado del servicio.' },
       { name: 'Instalaciones', description: 'Registro de credenciales de cliente.' },
       { name: 'Autenticacion', description: 'Registro, confirmacion e inicio de sesion.' },
+      {
+        name: 'Catalogos',
+        description: 'Roles del personal de salud y departamentos y municipios de Colombia (DANE).',
+      },
     ],
     components: {
       securitySchemes: {
@@ -550,6 +554,85 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
               ERRORES.apiKeyInvalida,
               ERRORES.apiKeySinPermiso,
               ERRORES.tokenRequerido,
+            ),
+          },
+        },
+      },
+      [`${raiz}/catalog/get-roles`]: {
+        get: {
+          tags: ['Catalogos'],
+          summary: 'Lista los roles',
+          description:
+            'Devuelve los roles del personal de salud con su area de servicio, ordenados por ' +
+            'codigo numerico. No requiere token de usuario.',
+          security: seguridadApiKey,
+          responses: {
+            '200': {
+              description: 'Roles consultados.',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+              ERRORES.apiKeySinPermiso,
+            ),
+          },
+        },
+      },
+      [`${raiz}/catalog/get-departments`]: {
+        get: {
+          tags: ['Catalogos'],
+          summary: 'Lista los departamentos',
+          description:
+            'Devuelve los departamentos ordenados por codigo DANE de 2 digitos. No requiere token ' +
+            'de usuario, para poder usarse durante el registro.',
+          security: seguridadApiKey,
+          responses: {
+            '200': {
+              description: 'Departamentos consultados.',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+              ERRORES.apiKeySinPermiso,
+            ),
+          },
+        },
+      },
+      [`${raiz}/catalog/get-municipalities`]: {
+        get: {
+          tags: ['Catalogos'],
+          summary: 'Lista los municipios',
+          description:
+            'Devuelve los municipios ordenados por codigo DANE de 5 digitos, de todo el pais o ' +
+            'solo del departamento indicado. No requiere token de usuario.',
+          security: seguridadApiKey,
+          parameters: [
+            {
+              name: 'department',
+              in: 'query',
+              required: false,
+              description: 'Codigo DANE del departamento (2 digitos), por ejemplo 76.',
+              schema: { type: 'string', pattern: '^\\d{2}$' },
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'Municipios consultados.',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+              },
+            },
+            ...respuestasDeError(
+              ERRORES.validacion,
+              ERRORES.apiKeyRequerida,
+              ERRORES.apiKeyInvalida,
+              ERRORES.apiKeySinPermiso,
             ),
           },
         },

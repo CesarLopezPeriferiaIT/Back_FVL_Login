@@ -28,6 +28,7 @@ const construirApp = (): Express => {
     config,
     logger,
     tokenService: tokens,
+    catalogoRepository: banco.catalogos,
     apiKeyService: createApiKeyService(banco.apiKeys),
     authService: createAuthService({
       usuarios: banco.usuarios,
@@ -63,6 +64,9 @@ describe('documentacion de la API', () => {
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/register');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/me');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/installations/register');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/catalog/get-roles');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/catalog/get-departments');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/catalog/get-municipalities');
     expect(Object.keys(paths)).toContain('/health');
     expect(Object.keys(paths).filter((ruta) => /password|pin/.test(ruta))).toEqual([]);
   });
