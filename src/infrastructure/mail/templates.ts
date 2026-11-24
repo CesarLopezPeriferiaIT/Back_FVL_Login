@@ -1,8 +1,8 @@
 /**
- * Plantillas de los correos que envia el servicio.
+ * Email templates sent by the service.
  *
- * El contenido esta en espanol porque es la communication directa con el usuario final de las
- * aplicaciones de la Fundacion.
+ * Content is in Spanish because it directly communicates with end users of the Foundation's
+ * applications.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0

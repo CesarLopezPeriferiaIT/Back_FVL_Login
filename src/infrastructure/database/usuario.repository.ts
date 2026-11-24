@@ -87,7 +87,7 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
       .input('uuidCodigo', sql.UniqueIdentifier, uuidCodigo).query(`UPDATE dbo.usuario
         SET estado = 'A', fecha_modificacion = SYSUTCDATETIME()
         WHERE uuid = @uuidUsuario AND estado = 'C'
-          AND EXISTS (SELECT 1 FROM dbo.codigo_confirmacion
+          AND EXISTS (SELECT 1 FROM dbo.codigo_confirmacion WITH (UPDLOCK, HOLDLOCK)
             WHERE uuid = @uuidCodigo AND uuid_usuario = @uuidUsuario
               AND usado_en IS NULL AND invalidado = 0 AND expira_en > SYSUTCDATETIME())`);
     return result.rowsAffected[0] === 1;

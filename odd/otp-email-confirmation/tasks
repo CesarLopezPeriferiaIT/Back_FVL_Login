@@ -326,3 +326,16 @@ El mecanismo de enlace desaparece, asi que su soporte tambien:
     linaje. La revision no se ejecuto y nunca autoriza la entrega.
   - La plantilla de variables de entorno del repositorio no pudo modificarse porque la politica de
     seguridad del entorno bloquea esa ruta. Queda como pendiente manual y anotado en el CHANGELOG.
+- L12 (2026-11-24) - Correccion final de los mensajes de error y prueba de serializacion contra SQL
+  Server real:
+  - La activacion condicionada se completa con `UPDLOCK, HOLDLOCK` en la subconsulta `EXISTS`, de
+    modo que la comprobacion y la escritura se serialicen frente a una invalidacion concurrente.
+  - Los dos casos en los que el mensaje mentia quedaron corregidos: cuando el codigo vence durante
+    la operacion, la respuesta es 400 `CODIGO_CONFIRMACION_VENCIDO`, y cuando otra peticion confirmo
+    el codigo primero, la respuesta es 409 `CUENTA_YA_CONFIRMADA`. La causa real se determina
+    reconsultando el estado de la cuenta y el ultimo codigo de esa cuenta.
+  - La serializacion se comprobo por ejecucion contra un SQL Server 2022 local, con dos sesiones
+    concurrentes: una invalido el codigo en una transaccion abierta durante diez segundos y la otra
+    intento activar la cuenta en paralelo. La activacion espero 8293 milisegundos y afecto cero
+    filas, y la cuenta permanecio en estado `C`. Sin los bloqueos, la segunda sesion habria leido la
+    instantanea previa a la invalidacion y habria activado la cuenta.

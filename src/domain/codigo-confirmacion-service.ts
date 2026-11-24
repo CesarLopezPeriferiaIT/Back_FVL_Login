@@ -16,6 +16,7 @@ import type { CodigoConfirmacionRepository, UsuarioRepository } from './ports.js
 export interface CodigoConfirmacionService {
   generar(email: string): Promise<{ codigo: string; expiraEn: Date; uuidCodigo: string }>;
   validar(email: string, codigo: string): Promise<{ usuario: Usuario; uuidCodigo: string }>;
+  clasificarFallo(email: string): Promise<AppError>;
   marcarUsado(uuidCodigo: string): Promise<void>;
 }
 
@@ -32,7 +33,30 @@ export const createCodigoConfirmacionService = (deps: {
       throw new AppError('USUARIO_NO_ENCONTRADO', 'No existe una cuenta asociada al correo.', 404);
     return usuario;
   };
-  return {
+  const servicio: CodigoConfirmacionService = {
+    clasificarFallo: async (email) => {
+      const usuario = await deps.usuarios.findByEmail(normalizarEmail(email));
+      if (usuario && usuario.estado !== 'C')
+        return new AppError('CUENTA_YA_CONFIRMADA', 'La cuenta ya fue confirmada.', 409);
+      const ultimo = usuario ? await deps.codigos.buscarUltimoPorUsuario(usuario.uuid) : null;
+      if (!ultimo)
+        return new AppError(
+          'CODIGO_CONFIRMACION_NO_EXISTE',
+          'No hay un codigo de confirmacion vigente para esta cuenta.',
+          404,
+        );
+      if (!ultimo.invalidado && ultimo.expiraEn.getTime() <= Date.now())
+        return new AppError(
+          'CODIGO_CONFIRMACION_VENCIDO',
+          'El codigo de confirmacion vencio. Solicite un nuevo codigo.',
+          400,
+        );
+      return new AppError(
+        'CODIGO_CONFIRMACION_INVALIDADO',
+        'El codigo de confirmacion se invalido por demasiados intentos fallidos.',
+        429,
+      );
+    },
     generar: async (email) => {
       const usuario = await buscarUsuario(email);
       const anterior = await deps.codigos.buscarNoConsumidoPorUsuario(usuario.uuid);
@@ -87,11 +111,8 @@ export const createCodigoConfirmacionService = (deps: {
           registro.uuid,
           deps.config.confirmacion.maxIntentos,
         );
-        if (
-          !resultado ||
-          resultado.invalidado ||
-          resultado.intentos >= deps.config.confirmacion.maxIntentos
-        ) {
+        if (!resultado) throw await servicio.clasificarFallo(email);
+        if (resultado.invalidado || resultado.intentos >= deps.config.confirmacion.maxIntentos) {
           throw new AppError(
             'CODIGO_CONFIRMACION_INVALIDADO',
             'El codigo de confirmacion se invalido por demasiados intentos fallidos.',
@@ -108,4 +129,5 @@ export const createCodigoConfirmacionService = (deps: {
     },
     marcarUsado: (uuidCodigo) => deps.codigos.marcarUsado(uuidCodigo),
   };
+  return servicio;
 };

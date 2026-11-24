@@ -98,6 +98,20 @@ describe('generar', () => {
 });
 
 describe('validar', () => {
+  it('detecta la confirmacion concurrente al registrar un intento', async () => {
+    const { servicio, usuario, banco } = preparar();
+    await servicio.generar(usuario.email);
+    vi.spyOn(banco.codigos, 'registrarIntentoFallido').mockImplementation(async () => {
+      usuario.estado = 'A';
+      await banco.codigos.marcarUsado(banco.estado.codigos[0]!.uuid);
+      return null;
+    });
+    await expect(servicio.validar(usuario.email, '999999')).rejects.toMatchObject({
+      codigo: 'CUENTA_YA_CONFIRMADA',
+      status: 409,
+    });
+    expect(banco.estado.codigos[0]!.intentos).toBe(0);
+  });
   it('rechaza un correo sin cuenta', async () => {
     const { servicio, banco } = preparar();
     await expect(servicio.validar('ausente@ejemplo.com', '000042')).rejects.toMatchObject({
@@ -132,6 +146,23 @@ describe('validar', () => {
       codigo: 'CODIGO_CONFIRMACION_VENCIDO',
       status: 400,
     });
+    expect(registro.intentos).toBe(0);
+    expect(registro.invalidado).toBe(false);
+    expect(registro.usadoEn).toBeNull();
+  });
+  it('detecta el vencimiento al registrar un intento fallido', async () => {
+    const { servicio, usuario, banco } = preparar();
+    await servicio.generar(usuario.email);
+    const registro = banco.estado.codigos[0]!;
+    vi.spyOn(banco.codigos, 'registrarIntentoFallido').mockImplementation(async () => {
+      registro.expiraEn = new Date(0);
+      return null;
+    });
+    await expect(servicio.validar(usuario.email, '999999')).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_VENCIDO',
+      status: 400,
+    });
+    expect(usuario.estado).toBe('C');
     expect(registro.intentos).toBe(0);
     expect(registro.invalidado).toBe(false);
     expect(registro.usadoEn).toBeNull();

@@ -71,6 +71,25 @@ const registrarActivo = async (): Promise<{
 };
 
 describe('confirmacion con codigo', () => {
+  it('detecta el vencimiento entre comparacion y activacion', async () => {
+    const { banco, authService } = crearServicio();
+    await authService.registrar({ email: 'vence@ejemplo.co', password: PASSWORD, tyc: true });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const activar = banco.usuarios.activarConCodigoVigente.bind(banco.usuarios);
+    banco.usuarios.activarConCodigoVigente = async (uuid, uuidCodigo) => {
+      banco.estado.codigos[0]!.expiraEn = new Date(0);
+      return activar(uuid, uuidCodigo);
+    };
+    await expect(
+      authService.confirmarCodigo({ email: 'vence@ejemplo.co', codigo }),
+    ).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_VENCIDO',
+      status: 400,
+    });
+    expect(banco.estado.usuarios[0]?.estado).toBe('C');
+    expect(banco.estado.codigos[0]?.usadoEn).toBeNull();
+    expect(banco.estado.codigos[0]?.intentos).toBe(0);
+  });
   it('rechaza la validacion en vuelo si el codigo se invalida', async () => {
     const banco = crearBancoEnMemoria();
     const config = configDePrueba();
