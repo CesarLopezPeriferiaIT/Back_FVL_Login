@@ -33,14 +33,6 @@ describe('servicio de tokens', () => {
     });
   });
 
-  it('emite un token de reseteo con el correo y la huella de la contrasena', () => {
-    const token = tokens.crearTokenReseteo('usuario@ejemplo.co', 'huella-1234');
-    expect(tokens.verificarTokenReseteo(token)).toEqual({
-      email: 'usuario@ejemplo.co',
-      pwd: 'huella-1234',
-    });
-  });
-
   it('rechaza un token firmado con otro secreto', () => {
     const otroServicio = createTokenService({
       ...config,
@@ -60,19 +52,14 @@ describe('servicio de tokens', () => {
     expect(() => tokens.verificarTokenAcceso(token)).toThrow();
   });
 
-  it('no permite usar un token de reseteo como token de confirmacion', () => {
-    const token = tokens.crearTokenReseteo('usuario@ejemplo.co', 'huella-1234');
-    expect(() => tokens.verificarTokenConfirmacion(token)).toThrow();
-  });
-
-  it('no permite usar un token de acceso como token de reseteo', () => {
+  it('no permite usar un token de acceso como token de confirmacion', () => {
     const token = tokens.crearTokenAcceso({
       uuidUsuario: 'uuid-usuario',
       email: 'usuario@ejemplo.co',
       sessionId: 'uuid-sesion',
     });
 
-    expect(() => tokens.verificarTokenReseteo(token)).toThrow();
+    expect(() => tokens.verificarTokenConfirmacion(token)).toThrow();
   });
 
   it('rechaza una firma adulterada', () => {

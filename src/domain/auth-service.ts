@@ -43,15 +43,6 @@ export interface AuthService {
   confirmarCorreo(token: string): Promise<UsuarioPublico>;
   renovarSesion(tokenRefresh: string): Promise<ResultadoSesion>;
   cerrarSesion(sessionId: string): Promise<void>;
-  solicitarReseteo(email: string): Promise<void>;
-  verificarEnlaceReseteo(token: string): Promise<{ email: string }>;
-  resetearContrasena(params: { token: string; nuevaPassword: string }): Promise<void>;
-  cambiarContrasena(params: {
-    uuidUsuario: string;
-    sessionId: string;
-    passwordActual: string;
-    nuevaPassword: string;
-  }): Promise<void>;
   consultarPerfil(uuidUsuario: string): Promise<UsuarioPublico>;
 }
 
@@ -65,14 +56,6 @@ export interface AuthServiceDeps {
   config: AppConfig;
   logger: Logger;
 }
-
-/**
- * Huella de la contrasena vigente que se incluye en el token de reseteo.
- *
- * Permite invalidar el token cuando la contrasena ya cambio, sin necesidad de una tabla adicional
- * que guarde el historial de tokens consumidos.
- */
-const huellaDePassword = (passHash: string): string => sha256(passHash).slice(0, 32);
 
 /**
  * Crea el servicio de autenticacion con las dependencias indicadas.
@@ -134,24 +117,6 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
     );
 
     return construirResultadoSesion(usuario, sesion.uuid, tokenRefresh, refreshExpiresAt);
-  };
-
-  /**
-   * Resuelve el enlace de reseteo y devuelve la cuenta asociada.
-   *
-   * La huella de la contrasena vigente viaja dentro del token, de modo que un enlace ya utilizado
-   * deja de coincidir en cuanto la contrasena cambia. Asi el enlace es de un solo uso sin
-   * necesidad de una tabla adicional que guarde el historial de tokens consumidos.
-   */
-  const resolverEnlaceReseteo = async (token: string): Promise<Usuario> => {
-    const claims = tokens.verificarTokenReseteo(token);
-    const usuario = await usuarios.findByEmail(normalizarEmail(claims.email));
-
-    if (!usuario || huellaDePassword(usuario.passHash) !== claims.pwd) {
-      throw new AppError('TOKEN_INVALIDO', 'El enlace no es valido o ya fue utilizado.', 400);
-    }
-
-    return usuario;
   };
 
   return {
@@ -310,59 +275,6 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
 
     cerrarSesion: async (sessionId: string): Promise<void> => {
       await sesiones.revocarSesion(sessionId);
-    },
-
-    solicitarReseteo: async (email: string): Promise<void> => {
-      const correoNormalizado = normalizarEmail(email);
-      const usuario = await usuarios.findByEmail(correoNormalizado);
-
-      // La operacion termina igual exista o no la cuenta, para no revelar que correos estan
-      // registrados. Las cuentas desactivadas o inactivas no reciben el enlace.
-      if (!usuario || usuario.estado === 'D' || usuario.estado === 'I') {
-        return;
-      }
-
-      const token = tokens.crearTokenReseteo(correoNormalizado, huellaDePassword(usuario.passHash));
-      const enlace = construirEnlace('auth/reset-password', token);
-
-      await enviarCorreo(() => correo.enviarReseteo(correoNormalizado, enlace));
-    },
-
-    verificarEnlaceReseteo: async (token: string): Promise<{ email: string }> => {
-      const usuario = await resolverEnlaceReseteo(token);
-      return { email: usuario.email };
-    },
-
-    resetearContrasena: async ({ token, nuevaPassword }): Promise<void> => {
-      const usuario = await resolverEnlaceReseteo(token);
-      const passHash = await hasher.hash(nuevaPassword);
-      await usuarios.updatePassword(usuario.uuid, passHash);
-      await sesiones.revocarSesionesDeUsuario(usuario.uuid);
-    },
-
-    cambiarContrasena: async ({
-      uuidUsuario,
-      sessionId,
-      passwordActual,
-      nuevaPassword,
-    }): Promise<void> => {
-      const usuario = await usuarios.findByUuid(uuidUsuario);
-
-      if (!usuario) {
-        throw new AppError('USUARIO_NO_ENCONTRADO', 'La cuenta no existe.', 404);
-      }
-
-      const coincide = await hasher.verify(usuario.passHash, passwordActual);
-
-      if (!coincide) {
-        // El usuario ya esta autenticado con su token de acceso: la contrasena actual es un dato
-        // del formulario y su error es de validacion, no de autenticacion.
-        throw new AppError('PASSWORD_ACTUAL_INVALIDA', 'La contrasena actual no es correcta.', 400);
-      }
-
-      const passHash = await hasher.hash(nuevaPassword);
-      await usuarios.updatePassword(usuario.uuid, passHash);
-      await sesiones.revocarSesionesDeUsuario(uuidUsuario, sessionId);
     },
 
     consultarPerfil: async (uuidUsuario: string): Promise<UsuarioPublico> => {

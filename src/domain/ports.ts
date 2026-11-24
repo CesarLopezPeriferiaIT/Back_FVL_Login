@@ -12,7 +12,6 @@ import type {
   EstadoUsuario,
   LogSession,
   Permiso,
-  PinAcceso,
   TipoCliente,
   Usuario,
 } from './entities.js';
@@ -23,7 +22,6 @@ export interface UsuarioRepository {
   findByUuid(uuid: string): Promise<Usuario | null>;
   create(nuevoUsuario: NuevoUsuario): Promise<Usuario>;
   updateEstado(uuid: string, estado: EstadoUsuario): Promise<void>;
-  updatePassword(uuid: string, passHash: string): Promise<void>;
 }
 
 /** Datos minimos para persistir una cuenta nueva. */
@@ -45,7 +43,6 @@ export interface LogSessionRepository {
   ): Promise<LogSession>;
   rotarRefresh(uuid: string, refreshTokenHash: string, refreshExpiresAt: Date): Promise<void>;
   revocarSesion(uuid: string): Promise<void>;
-  revocarSesionesDeUsuario(uuidUsuario: string, exceptoSessionUuid?: string): Promise<void>;
   contarIntentosFallidosDesdeUltimoExito(uuidUsuario: string): Promise<number>;
   buscarSesionPorHash(refreshTokenHash: string): Promise<LogSession | null>;
 }
@@ -77,21 +74,4 @@ export interface MensajeCorreo {
 /** Servicio de envio de correo. */
 export interface MailSender {
   enviar(mensaje: MensajeCorreo): Promise<void>;
-}
-
-/** Datos minimos para registrar el verificador de un pin de acceso. */
-export interface NuevoPin {
-  uuid: string;
-  uuidUsuario: string;
-  dispositivo: string;
-  hash: string;
-}
-
-/** Acceso a los pines de acceso de las cuentas. */
-export interface PinRepository {
-  buscarActivo(uuidUsuario: string): Promise<PinAcceso | null>;
-  crear(pin: NuevoPin): Promise<PinAcceso>;
-  registrarIntentoFallido(uuid: string): Promise<void>;
-  registrarUso(uuid: string): Promise<void>;
-  revocarActivos(uuidUsuario: string): Promise<void>;
 }

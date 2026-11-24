@@ -18,7 +18,6 @@ const entorno = (): NodeJS.ProcessEnv => ({
   APP_ENV: 'dev',
   JWT_ACCESS_SECRET: 'a'.repeat(32),
   JWT_CONFIRM_SECRET: 'b'.repeat(32),
-  JWT_RESET_SECRET: 'c'.repeat(32),
   DB_SERVER: 'localhost',
   DB_DATABASE: 'prueba',
   DB_USER: 'usuario',

@@ -36,8 +36,6 @@ const PERMISOS_VALIDOS: readonly Permiso[] = [
   'auth:confirm-email',
   'auth:refresh',
   'auth:logout',
-  'auth:pin',
-  'auth:password-reset',
   'auth:me',
 ];
 

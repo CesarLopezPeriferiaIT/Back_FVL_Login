@@ -28,8 +28,6 @@ const PERMISOS_POR_TIPO_CLIENTE: Record<TipoCliente, Permiso[]> = {
     PERMISOS.authConfirmEmail,
     PERMISOS.authRefresh,
     PERMISOS.authLogout,
-    PERMISOS.authPin,
-    PERMISOS.authPasswordReset,
     PERMISOS.authMe,
   ],
   'web-bff': [
@@ -38,8 +36,6 @@ const PERMISOS_POR_TIPO_CLIENTE: Record<TipoCliente, Permiso[]> = {
     PERMISOS.authConfirmEmail,
     PERMISOS.authRefresh,
     PERMISOS.authLogout,
-    PERMISOS.authPin,
-    PERMISOS.authPasswordReset,
     PERMISOS.authMe,
   ],
   web: [PERMISOS.authMe],

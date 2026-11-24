@@ -14,10 +14,8 @@ import { createApiKeyService } from './domain/api-key-service.js';
 import { createAuthService } from './domain/auth-service.js';
 import { createMailService } from './domain/mail-service.js';
 import { createPasswordHasher } from './domain/password-hasher.js';
-import { createPinService } from './domain/pin-service.js';
 import { createTokenService } from './domain/token-service.js';
 import { createApiKeyRepository } from './infrastructure/database/api-key.repository.js';
-import { createPinRepository } from './infrastructure/database/pin.repository.js';
 import { closePool, createPool } from './infrastructure/database/pool.js';
 import { createLogSessionRepository } from './infrastructure/database/log-session.repository.js';
 import { createUsuarioRepository } from './infrastructure/database/usuario.repository.js';
@@ -47,7 +45,6 @@ const main = async (): Promise<void> => {
     authService,
     apiKeyService: createApiKeyService(createApiKeyRepository(pool)),
     tokenService: createTokenService(config),
-    pinService: createPinService({ pines: createPinRepository(pool), hasher }),
   });
 
   const servidor = app.listen(config.port, () => {

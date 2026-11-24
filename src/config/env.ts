@@ -44,8 +44,6 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().min(1).default('15m'),
   JWT_CONFIRM_SECRET: z.string().min(32),
   JWT_CONFIRM_TTL: z.string().min(1).default('24h'),
-  JWT_RESET_SECRET: z.string().min(32),
-  JWT_RESET_TTL: z.string().min(1).default('30m'),
   JWT_ISSUER: z.string().min(1).default('fvl-login'),
   JWT_AUDIENCE: z.string().min(1).default('fvl-clients'),
 
@@ -93,8 +91,6 @@ export interface AppConfig {
     accessTtl: string;
     confirmSecret: string;
     confirmTtl: string;
-    resetSecret: string;
-    resetTtl: string;
     issuer: string;
     audience: string;
   };
@@ -146,8 +142,6 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     accessTtl: valores.JWT_ACCESS_TTL,
     confirmSecret: valores.JWT_CONFIRM_SECRET,
     confirmTtl: valores.JWT_CONFIRM_TTL,
-    resetSecret: valores.JWT_RESET_SECRET,
-    resetTtl: valores.JWT_RESET_TTL,
     issuer: valores.JWT_ISSUER,
     audience: valores.JWT_AUDIENCE,
   },

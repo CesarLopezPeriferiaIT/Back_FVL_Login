@@ -10,7 +10,6 @@ import type { Express } from 'express';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
-import { createPinService } from '../../src/domain/pin-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
 import { createMailService } from '../../src/domain/mail-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
@@ -30,7 +29,6 @@ const construirApp = (): Express => {
     logger,
     tokenService: tokens,
     apiKeyService: createApiKeyService(banco.apiKeys),
-    pinService: createPinService({ pines: banco.pines, hasher: createPasswordHasher() }),
     authService: createAuthService({
       usuarios: banco.usuarios,
       sesiones: banco.sesiones,
@@ -66,6 +64,7 @@ describe('documentacion de la API', () => {
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/me');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/installations/register');
     expect(Object.keys(paths)).toContain('/health');
+    expect(Object.keys(paths).filter((ruta) => /password|pin/.test(ruta))).toEqual([]);
   });
 
   it('declara los dos mecanismos de autenticacion', async () => {
