@@ -34,6 +34,9 @@ export interface NuevoUsuario {
   passHash: string;
   estado: EstadoUsuario;
   tyc: boolean;
+  codigoDepartamento: string;
+  codigoMunicipio: string;
+  codigoRol: number;
 }
 
 /** Acceso a los intentos de inicio de sesion y a las sesiones vivas. */

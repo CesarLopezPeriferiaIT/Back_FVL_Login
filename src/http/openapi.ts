@@ -407,7 +407,9 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
           description:
             'Crea la cuenta en estado por confirmar y envia el correo de confirmacion. Si no se ' +
             'aceptan los terminos y condiciones, la cuenta se crea igual pero no se envia el ' +
-            'correo, de modo que no queda un registro a medio completar.',
+            'correo, de modo que no queda un registro a medio completar. El departamento, el ' +
+            'municipio y el rol son obligatorios y deben existir en los catalogos; si no, responde ' +
+            '400 con el codigo CATALOGO_INVALIDO.',
           security: seguridadApiKey,
           requestBody: cuerpoDePeticion(registroSchema),
           responses: {

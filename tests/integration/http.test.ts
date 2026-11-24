@@ -21,6 +21,7 @@ import { crearBancoEnMemoria, insertarApiKey, insertarUsuario } from '../helpers
 const base = '/backend/dev/v1';
 const clave = 'clave-de-integracion';
 const password = 'ClaveSegura1';
+const ubicacion = { codigo_departamento: '76', codigo_municipio: '76001', codigo_rol: 1 };
 const banco = crearBancoEnMemoria();
 const config = configDePrueba();
 const logger = createLogger('error');
@@ -109,7 +110,7 @@ describe('API HTTP', () => {
 
   it('valida registro, credenciales de cliente y cuerpo', async () => {
     const ruta = `${base}/auth/register`;
-    const datos = { email: 'registro@ejemplo.co', password, tyc: true };
+    const datos = { email: 'registro@ejemplo.co', password, tyc: true, ...ubicacion };
     await request(app).post(ruta).send(datos).expect(401);
     await request(app).post(ruta).set('X-API-Key', 'sin-permisos').send(datos).expect(403);
     for (const invalido of [
@@ -118,6 +119,9 @@ describe('API HTTP', () => {
       { ...datos, password: '12345678' },
       { ...datos, password: 'abcdefgh' },
       { email: datos.email, password },
+      { ...datos, codigo_rol: undefined },
+      { ...datos, codigo_municipio: '05001' },
+      { ...datos, codigo_departamento: '7' },
     ])
       await request(app).post(ruta).set('X-API-Key', clave).send(invalido).expect(400);
     await request(app).post(ruta).set('X-API-Key', clave).send(datos).expect(201);
@@ -138,7 +142,7 @@ describe('API HTTP', () => {
     await request(app)
       .post(`${base}/auth/register`)
       .set('X-API-Key', clave)
-      .send({ email: 'confirmar@ejemplo.co', password, tyc: true })
+      .send({ email: 'confirmar@ejemplo.co', password, tyc: true, ...ubicacion })
       .expect(201);
     await request(app)
       .get(`${base}/auth/confirm-email`)

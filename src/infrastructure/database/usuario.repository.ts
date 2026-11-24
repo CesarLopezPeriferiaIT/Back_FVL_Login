@@ -66,11 +66,16 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
       .input('passHash', sql.NVarChar(512), nuevoUsuario.passHash)
       .input('estado', sql.Char(1), nuevoUsuario.estado)
       .input('tyc', sql.Bit, nuevoUsuario.tyc)
+      .input('codigoDepartamento', sql.VarChar(2), nuevoUsuario.codigoDepartamento)
+      .input('codigoMunicipio', sql.VarChar(5), nuevoUsuario.codigoMunicipio)
+      .input('codigoRol', sql.Int, nuevoUsuario.codigoRol)
       .query<IRecordSet<UsuarioRow>>(
-        `INSERT INTO dbo.usuario (uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc)
+        `INSERT INTO dbo.usuario (uuid, Email, pass_hash, estado, fecha_creacion, fecha_modificacion, tyc,
+                                  codigo_departamento, codigo_municipio, codigo_rol)
          OUTPUT INSERTED.uuid, INSERTED.Email, INSERTED.pass_hash, INSERTED.estado,
                 INSERTED.fecha_creacion, INSERTED.fecha_modificacion, INSERTED.tyc
-         VALUES (@uuid, @email, @passHash, @estado, SYSUTCDATETIME(), SYSUTCDATETIME(), @tyc)`,
+         VALUES (@uuid, @email, @passHash, @estado, SYSUTCDATETIME(), SYSUTCDATETIME(), @tyc,
+                 @codigoDepartamento, @codigoMunicipio, @codigoRol)`,
       );
 
     const fila = result.recordset[0];

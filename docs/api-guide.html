@@ -207,19 +207,23 @@ HTTP/1.1 201 Created
             Alcance <code>auth:register</code>; cabeceras <code>X-API-Key</code> y
             <code>Content-Type: application/json</code>. Cuerpo obligatorio:
             <code>email</code> cadena de correo válida, <code>password</code> cadena conforme a la
-            política, <code>tyc</code> booleano. Si es false se crea la cuenta sin enviar
-            confirmación; revise también el indicador de envío.
+            política, <code>tyc</code> booleano, <code>codigo_departamento</code> (2 dígitos),
+            <code>codigo_municipio</code> (5 dígitos, debe empezar por el código del departamento) y
+            <code>codigo_rol</code> (entero positivo); los tres últimos salen de los endpoints de
+            catálogo. Si <code>tyc</code> es false se crea la cuenta sin enviar confirmación; revise
+            también el indicador de envío.
           </p>
           <pre><code>POST /backend/dev/v1/auth/register HTTP/1.1
 X-API-Key: CLAVE_EJEMPLO
 Content-Type: application/json
 
-{"email":"usuario@example.org","password":"Ejemplo123","tyc":true}
+{"email":"usuario@example.org","password":"Ejemplo123","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}
 
 HTTP/1.1 201 Created
 {"message":"Registro realizado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"C","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:00:00.000Z"},"correo_confirmacion_enviado":true}}</code></pre>
           <p>
-            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>USUARIO_YA_EXISTE</code>,
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>CATALOGO_INVALIDO</code> (el
+            departamento, el municipio o el rol no existe), <code>USUARIO_YA_EXISTE</code>,
             <code>RATE_LIMIT_EXCEDIDO</code>.
           </p>
         </section>
@@ -436,6 +440,11 @@ HTTP/1.1 200 OK
               <td>Entrada inválida.</td>
             </tr>
             <tr>
+              <td>CATALOGO_INVALIDO</td>
+              <td>400</td>
+              <td>El departamento, el municipio o el rol no existe en el catálogo.</td>
+            </tr>
+            <tr>
               <td>USUARIO_YA_EXISTE</td>
               <td>409</td>
               <td>Correo registrado.</td>
@@ -604,7 +613,7 @@ HTTP/1.1 200 OK
         <pre><code>BASE=http://localhost:3000/backend/dev/v1
 curl -X POST "$BASE/installations/register" -H 'Content-Type: application/json' -d '{"nombre":"Cliente móvil","tipo_cliente":"mobile"}'
 # Copie data.api_key en API_KEY en un entorno seguro.
-curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123","tyc":true}'
+curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}'
 # Obtenga el token del enlace recibido por correo.
 curl -X POST "$BASE/auth/confirm-email" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN_CONFIRMACION\"}"
 curl -X POST "$BASE/auth/login" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123"}'

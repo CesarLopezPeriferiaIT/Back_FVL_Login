@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../../src/config/env.js';
 import { createMailSender } from '../../src/infrastructure/mail/mailer.js';
-import { esClaveDuplicada } from '../../src/shared/errors.js';
+import { esClaveDuplicada, esLlaveForaneaInvalida } from '../../src/shared/errors.js';
 import { createLogger } from '../../src/shared/logger.js';
 import { configDePrueba } from '../helpers/config.js';
 
@@ -106,6 +106,11 @@ describe('infraestructura', () => {
     const linea = String(stderr.mock.calls[0]?.[0]);
     expect(linea.endsWith('\n')).toBe(true);
     expect(JSON.parse(linea)).toMatchObject({ nivel: 'warn', mensaje: 'aviso', id: 1 });
+  });
+
+  it('clasifica errores de llave foranea', () => {
+    expect(esLlaveForaneaInvalida({ number: 547 })).toBe(true);
+    expect(esLlaveForaneaInvalida({ number: 2601 })).toBe(false);
   });
 
   it('clasifica errores de clave duplicada', () => {

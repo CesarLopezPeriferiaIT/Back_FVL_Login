@@ -11,6 +11,10 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 -Catálogo de roles: tabla `catalogo_rol` (5 filas, código numérico) en `db/init/03-catalogo-rol.sql` y endpoint `GET /catalog/get-roles`, con el mismo alcance `catalog:read`.
 
+### Modificado
+
+-`POST /auth/register` exige `codigo_departamento`, `codigo_municipio` y `codigo_rol`, que se guardan en `usuario` (columnas `NOT NULL` con FK a los catálogos, `db/init/04-usuario-catalogos.sql`). Un código inexistente responde `400 CATALOGO_INVALIDO`. Los clientes actuales deben enviar los tres campos.
+
 ### Eliminado
 
 -Endpoints de contraseña `forgot-password`, `reset-password` (GET y POST) y `change-password`, con su lógica de servicio, token de reseteo, plantilla de correo y variables `JWT_RESET_SECRET` y `JWT_RESET_TTL`.

@@ -18,6 +18,7 @@ import { crearBancoEnMemoria, insertarUsuario } from '../helpers/in-memory.js';
 import type { BancoEnMemoria } from '../helpers/in-memory.js';
 
 const PASSWORD = 'ClaveSegura1';
+const UBICACION = { codigoDepartamento: '76', codigoMunicipio: '76001', codigoRol: 1 };
 
 const hasher = createPasswordHasher();
 
@@ -75,6 +76,7 @@ describe('registro de cuenta', () => {
       email: 'nuevo@ejemplo.co',
       password: PASSWORD,
       tyc: true,
+      ...UBICACION,
     });
 
     expect(resultado.usuario.estado).toBe('C');
@@ -92,6 +94,7 @@ describe('registro de cuenta', () => {
       email: 'nuevo@ejemplo.co',
       password: PASSWORD,
       tyc: false,
+      ...UBICACION,
     });
 
     expect(resultado.correoConfirmacionEnviado).toBe(false);
@@ -107,6 +110,7 @@ describe('registro de cuenta', () => {
       email: '  Nuevo@Ejemplo.CO ',
       password: PASSWORD,
       tyc: true,
+      ...UBICACION,
     });
 
     expect(banco.estado.usuarios[0]?.email).toBe('nuevo@ejemplo.co');
@@ -115,7 +119,12 @@ describe('registro de cuenta', () => {
   it('almacena la contrasena cifrada y nunca en texto plano', async () => {
     const { banco, authService } = crearServicio();
 
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
 
     expect(banco.estado.usuarios[0]?.passHash).not.toBe(PASSWORD);
     await expect(hasher.verify(banco.estado.usuarios[0]?.passHash ?? '', PASSWORD)).resolves.toBe(
@@ -123,13 +132,39 @@ describe('registro de cuenta', () => {
     );
   });
 
+  it('rechaza un codigo de catalogo inexistente', async () => {
+    const { banco, authService } = crearServicio();
+    banco.usuarios.create = async () => {
+      throw Object.assign(new Error('llave foranea'), { number: 547 });
+    };
+
+    await expect(
+      authService.registrar({
+        email: 'nuevo@ejemplo.co',
+        password: PASSWORD,
+        tyc: true,
+        ...UBICACION,
+      }),
+    ).rejects.toMatchObject({ codigo: 'CATALOGO_INVALIDO', status: 400 });
+  });
+
   it('rechaza un correo ya registrado', async () => {
     const { authService } = crearServicio();
 
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
 
     await expect(
-      authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true }),
+      authService.registrar({
+        email: 'nuevo@ejemplo.co',
+        password: PASSWORD,
+        tyc: true,
+        ...UBICACION,
+      }),
     ).rejects.toMatchObject({ codigo: 'USUARIO_YA_EXISTE', status: 409 });
   });
 });
@@ -137,7 +172,12 @@ describe('registro de cuenta', () => {
 describe('confirmacion de correo', () => {
   it('deja la cuenta activa cuando el enlace es valido', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
 
     const token = extraerToken(banco.estado.correos[0]?.texto ?? '');
     const usuario = await authService.confirmarCorreo(token);
@@ -157,7 +197,12 @@ describe('confirmacion de correo', () => {
 
   it('rechaza confirmar una cuenta que ya fue confirmada', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
     const token = extraerToken(banco.estado.correos[0]?.texto ?? '');
 
     await authService.confirmarCorreo(token);

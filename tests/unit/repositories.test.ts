@@ -173,11 +173,19 @@ describe('mapeo de las filas devueltas', () => {
       passHash: 'hash-argon2',
       estado: 'C',
       tyc: true,
+      codigoDepartamento: '76',
+      codigoMunicipio: '76001',
+      codigoRol: 1,
     });
 
     expect(creado.uuid).toBe('uuid-usuario');
     expect(consultas[0]?.sql).toContain('INSERT INTO dbo.usuario');
     expect(consultas[0]?.parametros.estado).toBe('C');
+    expect(consultas[0]?.parametros).toMatchObject({
+      codigoDepartamento: '76',
+      codigoMunicipio: '76001',
+      codigoRol: 1,
+    });
 
     await expect(
       repo.create({
@@ -186,6 +194,9 @@ describe('mapeo de las filas devueltas', () => {
         passHash: 'hash-argon2',
         estado: 'C',
         tyc: true,
+        codigoDepartamento: '76',
+        codigoMunicipio: '76001',
+        codigoRol: 1,
       }),
     ).rejects.toThrow('No fue posible crear la cuenta de usuario.');
   });
