@@ -2,6 +2,14 @@
 
 Los cambios relevantes de este proyecto se documentan en este archivo, conforme a Keep a Changelog y al versionado semántico.
 
+## [Sin publicar]
+
+### Eliminado
+
+-Endpoints de contraseña `forgot-password`, `reset-password` (GET y POST) y `change-password`, con su lógica de servicio, token de reseteo, plantilla de correo y variables `JWT_RESET_SECRET` y `JWT_RESET_TTL`.
+-Endpoints de pin de acceso `/auth/pin/configurar`, `/auth/pin/verificar` y `/auth/pin/revocar`, con su servicio, repositorio, validadores y el script `db/init/02-pin-acceso.sql`. `/auth/me` ya no devuelve `pin_configurado`.
+-Alcances `auth:pin` y `auth:password-reset` de las API Key. La tabla `pin_acceso` no se elimina de las bases ya creadas.
+
 ## [1.0.0] - 2026-11-11
 
 ### Agregado

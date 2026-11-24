@@ -18,7 +18,6 @@ import { crearBancoEnMemoria, insertarUsuario } from '../helpers/in-memory.js';
 import type { BancoEnMemoria } from '../helpers/in-memory.js';
 
 const PASSWORD = 'ClaveSegura1';
-const PASSWORD_NUEVA = 'NuevaClave2';
 
 const hasher = createPasswordHasher();
 
@@ -336,105 +335,6 @@ describe('renovacion y cierre de sesion', () => {
       codigo: 'SESION_INVALIDA',
       status: 401,
     });
-  });
-});
-
-describe('reseteo de contrasena', () => {
-  it('no revela si el correo esta registrado', async () => {
-    const { banco, authService } = await registrarActivo();
-
-    await authService.solicitarReseteo('nadie@ejemplo.co');
-    expect(banco.estado.correos).toHaveLength(0);
-
-    await authService.solicitarReseteo('usuario@ejemplo.co');
-    expect(banco.estado.correos).toHaveLength(1);
-  });
-
-  it('no envia el enlace a una cuenta desactivada', async () => {
-    const { banco, authService } = crearServicio();
-    insertarUsuario(banco, {
-      email: 'desactivada@ejemplo.co',
-      passHash: await hasher.hash(PASSWORD),
-      estado: 'D',
-    });
-
-    await authService.solicitarReseteo('desactivada@ejemplo.co');
-
-    expect(banco.estado.correos).toHaveLength(0);
-  });
-
-  it('cambia la contrasena y deja inutilizable el enlace ya usado', async () => {
-    const { banco, authService } = await registrarActivo();
-    await authService.solicitarReseteo('usuario@ejemplo.co');
-    const token = extraerToken(banco.estado.correos[0]?.texto ?? '');
-
-    await authService.resetearContrasena({ token, nuevaPassword: PASSWORD_NUEVA });
-
-    await expect(authService.verificarEnlaceReseteo(token)).rejects.toMatchObject({
-      codigo: 'TOKEN_INVALIDO',
-      status: 400,
-    });
-
-    const sesion = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD_NUEVA,
-    });
-    expect(sesion.tokenAcceso).toBeTruthy();
-  });
-
-  it('rechaza un enlace de reseteo invalido', async () => {
-    const { authService } = await registrarActivo();
-
-    await expect(
-      authService.resetearContrasena({ token: 'enlace-invalido', nuevaPassword: PASSWORD_NUEVA }),
-    ).rejects.toMatchObject({ codigo: 'TOKEN_INVALIDO', status: 400 });
-  });
-});
-
-describe('cambio de contrasena con sesion activa', () => {
-  it('exige la contrasena actual', async () => {
-    const { authService, usuario } = await registrarActivo();
-    const sesion = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
-
-    await expect(
-      authService.cambiarContrasena({
-        uuidUsuario: usuario.uuid,
-        sessionId: sesion.tokenRefresh,
-        passwordActual: 'ClaveIncorrecta1',
-        nuevaPassword: PASSWORD_NUEVA,
-      }),
-    ).rejects.toMatchObject({ codigo: 'PASSWORD_ACTUAL_INVALIDA', status: 400 });
-  });
-
-  it('revoca las demas sesiones del usuario', async () => {
-    const { banco, authService, usuario } = await registrarActivo();
-    const primerAcceso = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
-    const segundoAcceso = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
-    const sesionActual = banco.estado.sesiones.find(
-      (sesion) => sesion.refreshTokenHash !== null && sesion.uuidUsuario === usuario.uuid,
-    );
-
-    await authService.cambiarContrasena({
-      uuidUsuario: usuario.uuid,
-      sessionId: sesionActual?.uuid ?? '',
-      passwordActual: PASSWORD,
-      nuevaPassword: PASSWORD_NUEVA,
-    });
-
-    const revocadas = banco.estado.sesiones.filter(
-      (sesion) => sesion.uuidUsuario === usuario.uuid && sesion.revokedAt !== null,
-    );
-    expect(revocadas).toHaveLength(1);
-    expect(primerAcceso.tokenRefresh).not.toBe(segundoAcceso.tokenRefresh);
   });
 });
 

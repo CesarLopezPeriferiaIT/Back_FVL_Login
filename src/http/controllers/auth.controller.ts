@@ -6,16 +6,12 @@
  */
 import type { Request, RequestHandler } from 'express';
 import type { AuthService, ResultadoSesion } from '../../domain/auth-service.js';
-import type { PinService } from '../../domain/pin-service.js';
 import { AppError } from '../../shared/errors.js';
 import { responderOk } from '../http-response.js';
 import {
-  cambioSchema,
-  emailSchema,
   loginSchema,
   refreshSchema,
   registroSchema,
-  resetSchema,
   tokenSchema,
 } from '../validators/auth.validators.js';
 
@@ -38,10 +34,7 @@ const datosSesion = (resultado: ResultadoSesion): object => ({
   usuario: resultado.usuario,
 });
 
-export const crearAuthController = (
-  service: AuthService,
-  pinService: PinService,
-): Record<string, RequestHandler> => ({
+export const crearAuthController = (service: AuthService): Record<string, RequestHandler> => ({
   registro: async (req, res) => {
     const body: unknown = req.body;
     const resultado = await service.registrar(registroSchema.parse(body));
@@ -77,37 +70,8 @@ export const crearAuthController = (
     res.setHeader('Clear-Site-Data', '"cache","cookies","storage"');
     responderOk(res, 'Sesion cerrada.', { mensaje: 'Sesion cerrada' });
   },
-  forgot: async (req, res) => {
-    const body: unknown = req.body;
-    const { email } = emailSchema.parse(body);
-    await service.solicitarReseteo(email);
-    responderOk(res, 'Si la cuenta existe, recibira instrucciones.', null);
-  },
-  verificarReset: async (req, res) => {
-    const { token } = tokenSchema.parse(tokenEntrada(req));
-    responderOk(res, 'Enlace valido.', await service.verificarEnlaceReseteo(token));
-  },
-  reset: async (req, res) => {
-    const body: unknown = req.body;
-    const { token, nueva_password } = resetSchema.parse(body);
-    await service.resetearContrasena({ token, nuevaPassword: nueva_password });
-    responderOk(res, 'Contrasena actualizada.', null);
-  },
-  cambiar: async (req, res) => {
-    const body: unknown = req.body;
-    const { password_actual, nueva_password } = cambioSchema.parse(body);
-    const actual = sesion(req);
-    await service.cambiarContrasena({
-      uuidUsuario: actual.uuidUsuario,
-      sessionId: actual.sessionId,
-      passwordActual: password_actual,
-      nuevaPassword: nueva_password,
-    });
-    responderOk(res, 'Contrasena actualizada.', null);
-  },
   perfil: async (req, res) =>
     responderOk(res, 'Perfil consultado.', {
       usuario: await service.consultarPerfil(sesion(req).uuidUsuario),
-      pin_configurado: await pinService.estaConfigurado(sesion(req).uuidUsuario),
     }),
 });

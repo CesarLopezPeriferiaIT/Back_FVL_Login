@@ -114,38 +114,6 @@ export const createLogSessionRepository = (pool: Database): LogSessionRepository
       );
   },
 
-  revocarSesionesDeUsuario: async (
-    uuidUsuario: string,
-    exceptoSessionUuid?: string,
-  ): Promise<void> => {
-    if (exceptoSessionUuid !== undefined) {
-      await pool
-        .request()
-        .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
-        .input('excluir', sql.UniqueIdentifier, exceptoSessionUuid)
-        .query(
-          `UPDATE dbo.log_session
-           SET revoked_at = SYSUTCDATETIME()
-           WHERE uuid_usuario = @uuidUsuario
-             AND revoked_at IS NULL
-             AND refresh_token_hash IS NOT NULL
-             AND uuid <> @excluir`,
-        );
-      return;
-    }
-
-    await pool
-      .request()
-      .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
-      .query(
-        `UPDATE dbo.log_session
-         SET revoked_at = SYSUTCDATETIME()
-         WHERE uuid_usuario = @uuidUsuario
-           AND revoked_at IS NULL
-           AND refresh_token_hash IS NOT NULL`,
-      );
-  },
-
   contarIntentosFallidosDesdeUltimoExito: async (uuidUsuario: string): Promise<number> => {
     const result = await pool
       .request()

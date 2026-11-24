@@ -91,16 +91,4 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
          WHERE uuid = @uuid`,
       );
   },
-
-  updatePassword: async (uuid: string, passHash: string): Promise<void> => {
-    await pool
-      .request()
-      .input('uuid', sql.UniqueIdentifier, uuid)
-      .input('passHash', sql.NVarChar(512), passHash)
-      .query(
-        `UPDATE dbo.usuario
-         SET pass_hash = @passHash, fecha_modificacion = SYSUTCDATETIME()
-         WHERE uuid = @uuid`,
-      );
-  },
 });

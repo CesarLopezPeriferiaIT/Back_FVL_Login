@@ -22,8 +22,6 @@ export const configDePrueba = (): AppConfig => ({
     accessTtl: '15m',
     confirmSecret: `${SECRETO_DE_PRUEBA}-confirmacion`,
     confirmTtl: '24h',
-    resetSecret: `${SECRETO_DE_PRUEBA}-reseteo`,
-    resetTtl: '30m',
     issuer: 'fvl-login',
     audience: 'fvl-clients',
   },

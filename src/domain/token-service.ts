@@ -1,8 +1,8 @@
 /**
  * Emision y verificacion de los tokens firmados por el servicio.
  *
- * Se usan tres familias de tokens con secretos distintos: token de acceso para las peticiones
- * autenticadas, token de confirmacion de correo y token de reseteo de contrasena. La separacion
+ * Se usan dos familias de tokens con secretos distintos: token de acceso para las peticiones
+ * autenticadas y token de confirmacion de correo. La separacion
  * de secretos garantiza que un token de un tipo no pueda usarse como si fuera de otro.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
@@ -14,7 +14,7 @@ import type { AppConfig } from '../config/env.js';
 import { AppError } from '../shared/errors.js';
 
 /** Proposito funcional de un token, verificado en cada lectura para evitar usos cruzados. */
-export type PropositoToken = 'access' | 'email-confirmation' | 'password-reset';
+export type PropositoToken = 'access' | 'email-confirmation';
 
 /** Contenido de un token de acceso. */
 export interface ClaimsAcceso {
@@ -28,20 +28,12 @@ export interface ClaimsConfirmacion {
   email: string;
 }
 
-/** Contenido de un token de reseteo de contrasena. */
-export interface ClaimsReseteo {
-  email: string;
-  pwd: string;
-}
-
 /** Contrato de emision y verificacion de tokens. */
 export interface TokenService {
   crearTokenAcceso(params: { uuidUsuario: string; email: string; sessionId: string }): string;
   verificarTokenAcceso(token: string): ClaimsAcceso;
   crearTokenConfirmacion(email: string): string;
   verificarTokenConfirmacion(token: string): ClaimsConfirmacion;
-  crearTokenReseteo(email: string, huellaPassword: string): string;
-  verificarTokenReseteo(token: string): ClaimsReseteo;
 }
 
 const ALGORITMO = 'HS256';
@@ -53,7 +45,7 @@ const mensajeTokenInvalido = 'El token proporcionado no es valido o ya expiro.';
  *
  * El estado HTTP distingue el uso de credenciales del uso de enlaces de correo: un token de
  * acceso invalido es un 401 porque el cliente no esta autenticado, mientras que un enlace de
- * confirmacion o de reseteo invalido es un 400 porque el dato recibido en la peticion no es valido.
+ * confirmacion invalido es un 400 porque el dato recibido en la peticion no es valido.
  */
 const verificarToken = (
   token: string,
@@ -145,27 +137,6 @@ export const createTokenService = (config: AppConfig): TokenService => {
         400,
       );
       return { email: exigirTexto(payload['email']) };
-    },
-
-    crearTokenReseteo: (email: string, huellaPassword: string): string =>
-      jwt.sign(
-        { email, pwd: huellaPassword, purpose: 'password-reset' satisfies PropositoToken },
-        config.jwt.resetSecret,
-        { ...opcionesFirma, expiresIn: comoExpiresIn(config.jwt.resetTtl) },
-      ),
-
-    verificarTokenReseteo: (token: string): ClaimsReseteo => {
-      const payload = verificarToken(
-        token,
-        config.jwt.resetSecret,
-        opcionesLectura,
-        'password-reset',
-        400,
-      );
-      return {
-        email: exigirTexto(payload['email']),
-        pwd: exigirTexto(payload['pwd']),
-      };
     },
   };
 };

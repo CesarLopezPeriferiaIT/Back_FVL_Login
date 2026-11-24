@@ -10,15 +10,13 @@ import type { AppDeps } from '../../app.js';
 import { PERMISOS } from '../../domain/entities.js';
 import type { Permiso } from '../../domain/entities.js';
 import { crearAuthController } from '../controllers/auth.controller.js';
-import { crearPinController } from '../controllers/pin.controller.js';
 import { exigirApiKey } from '../middlewares/api-key.js';
 import { exigirBearer } from '../middlewares/bearer.js';
 import { crearLimitadores } from '../middlewares/rate-limit.js';
 
 export const authRoutes = (deps: AppDeps): Router => {
   const router = Router();
-  const c = crearAuthController(deps.authService, deps.pinService);
-  const p = crearPinController(deps.pinService);
+  const c = crearAuthController(deps.authService);
   const key = (permiso: Permiso): RequestHandler =>
     exigirApiKey(deps.apiKeyService, permiso, deps.logger);
   const bearer = exigirBearer(deps.tokenService);
@@ -29,19 +27,6 @@ export const authRoutes = (deps: AppDeps): Router => {
   router.get('/confirm-email', key(PERMISOS.authConfirmEmail), c['confirmar']!);
   router.post('/logout', key(PERMISOS.authLogout), bearer, c['logout']!);
   router.post('/refresh', key(PERMISOS.authRefresh), c['refresh']!);
-  router.post('/forgot-password', key(PERMISOS.authPasswordReset), c['forgot']!);
-  router.get('/reset-password', key(PERMISOS.authPasswordReset), c['verificarReset']!);
-  router.post('/reset-password', key(PERMISOS.authPasswordReset), c['reset']!);
-  router.post('/change-password', key(PERMISOS.authPasswordReset), bearer, c['cambiar']!);
-  router.post('/pin/configurar', key(PERMISOS.authPin), bearer, p['configurar']!);
-  router.post(
-    '/pin/verificar',
-    key(PERMISOS.authPin),
-    bearer,
-    limits.identificador,
-    p['verificar']!,
-  );
-  router.post('/pin/revocar', key(PERMISOS.authPin), bearer, p['revocar']!);
   router.get('/me', key(PERMISOS.authMe), bearer, c['perfil']!);
   return router;
 };

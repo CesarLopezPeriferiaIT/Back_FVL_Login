@@ -96,13 +96,11 @@ describe('parametrizacion de las consultas', () => {
     expect(await repo.findByEmail(valor)).toBeNull();
     expect(await repo.findByUuid(valor)).toBeNull();
     await repo.updateEstado(valor, 'D');
-    await repo.updatePassword(valor, 'hash-de-prueba');
     comprobarConsulta(consultas[0], 'dbo.usuario', 'WHERE Email = @email', 'email', valor);
     for (const consulta of consultas.slice(1)) {
       comprobarConsulta(consulta, 'dbo.usuario', 'WHERE uuid = @uuid', 'uuid', valor);
     }
     expect(consultas[2]?.parametros.estado).toBe('D');
-    expect(consultas[3]?.parametros.passHash).toBe('hash-de-prueba');
   });
 
   it('parametriza las consultas y la revocacion de sesiones', async () => {
@@ -112,31 +110,25 @@ describe('parametrizacion de las consultas', () => {
     await repo.registrarIntentoFallido(valor);
     await repo.rotarRefresh(valor, 'hash', new Date('2030-01-01'));
     await repo.revocarSesion(valor);
-    await repo.revocarSesionesDeUsuario(valor);
-    await repo.revocarSesionesDeUsuario(valor, 'sesion-excluida');
     expect(await repo.contarIntentosFallidosDesdeUltimoExito(valor)).toBe(0);
     expect(await repo.buscarSesionPorHash(valor)).toBeNull();
     comprobarConsulta(consultas[0], 'dbo.log_session', '@uuidUsuario', 'uuidUsuario', valor);
     for (const consulta of consultas.slice(1, 3)) {
       comprobarConsulta(consulta, 'dbo.log_session', 'WHERE uuid = @uuid', 'uuid', valor);
     }
-    for (const consulta of consultas.slice(3, 6)) {
-      comprobarConsulta(
-        consulta,
-        'dbo.log_session',
-        'uuid_usuario = @uuidUsuario',
-        'uuidUsuario',
-        valor,
-      );
-    }
-    expect(consultas[4]?.sql).toContain('uuid <> @excluir');
-    expect(consultas[4]?.parametros.excluir).toBe('sesion-excluida');
-    expect(consultas[5]?.sql).toContain('successful = 0');
-    expect(consultas[5]?.sql).toContain('MAX(timestamp_intento)');
-    expect(consultas[5]?.sql).toContain('successful = 1');
-    expect(consultas[5]?.sql).toContain('timestamp_intento > COALESCE');
     comprobarConsulta(
-      consultas[6],
+      consultas[3],
+      'dbo.log_session',
+      'uuid_usuario = @uuidUsuario',
+      'uuidUsuario',
+      valor,
+    );
+    expect(consultas[3]?.sql).toContain('successful = 0');
+    expect(consultas[3]?.sql).toContain('MAX(timestamp_intento)');
+    expect(consultas[3]?.sql).toContain('successful = 1');
+    expect(consultas[3]?.sql).toContain('timestamp_intento > COALESCE');
+    comprobarConsulta(
+      consultas[4],
       'dbo.log_session',
       'WHERE refresh_token_hash = @refreshTokenHash',
       'refreshTokenHash',
@@ -265,15 +257,13 @@ interface PeticionFalsa {
 }
 
 describe('filtro de alcances de la API Key', () => {
-  it('conserva todos los alcances validos, incluido el del pin', async () => {
+  it('conserva todos los alcances validos', async () => {
     const fila = {
       uuid: 'uuid-clave',
       key_hash: 'c'.repeat(64),
       nombre: 'App movil',
       tipo_cliente: 'mobile',
-      permisos:
-        'auth:register,auth:login,auth:confirm-email,auth:refresh,auth:logout,auth:pin,' +
-        'auth:password-reset,auth:me',
+      permisos: 'auth:register,auth:login,auth:confirm-email,auth:refresh,auth:logout,auth:me',
       revocado: false,
       fecha_creacion: new Date(),
       fecha_modificacion: new Date(),
@@ -289,8 +279,8 @@ describe('filtro de alcances de la API Key', () => {
 
     const apiKey = await repo.findByHash('c'.repeat(64));
 
-    expect(apiKey?.permisos).toHaveLength(8);
-    expect(apiKey?.permisos).toContain('auth:pin');
+    expect(apiKey?.permisos).toHaveLength(6);
+    expect(apiKey?.permisos).toContain('auth:me');
   });
 
   it('descarta los alcances que no existen', async () => {

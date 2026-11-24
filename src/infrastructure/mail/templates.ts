@@ -63,25 +63,3 @@ export const plantillaConfirmacion = (params: { enlace: string }): ContenidoCorr
      ${boton(params.enlace, 'Confirmar mi cuenta')}`,
   ),
 });
-
-/**
- * Construye el correo de reseteo de la contrasena.
- */
-export const plantillaReseteo = (params: { enlace: string }): ContenidoCorreo => ({
-  asunto: 'Restablecimiento de contrasena - Fundacion Valle del Lili',
-  texto: [
-    'Hola,',
-    '',
-    'Se solicito el restablecimiento de la contrasena de su cuenta. Utilice el siguiente enlace para definir una nueva contrasena.',
-    '',
-    params.enlace,
-    '',
-    'El enlace expira en 30 minutos y solo puede utilizarse una vez.',
-  ].join('\n'),
-  html: envolver(
-    'Restablezca su contrasena',
-    `<p style="margin:0 0 8px;line-height:1.5;">Se solicito el restablecimiento de la contrasena de su cuenta.</p>
-     <p style="margin:0 0 8px;line-height:1.5;">Defina una nueva contrasena para volver a iniciar sesion.</p>
-     ${boton(params.enlace, 'Definir nueva contrasena')}`,
-  ),
-});

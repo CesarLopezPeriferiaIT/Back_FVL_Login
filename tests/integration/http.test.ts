@@ -9,7 +9,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
-import { createPinService } from '../../src/domain/pin-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
 import { PERMISOS } from '../../src/domain/entities.js';
 import { createMailService } from '../../src/domain/mail-service.js';
@@ -34,7 +33,6 @@ const app = createApp({
   logger,
   tokenService: tokens,
   apiKeyService: createApiKeyService(banco.apiKeys),
-  pinService: createPinService({ pines: banco.pines, hasher: createPasswordHasher() }),
   authService: createAuthService({
     usuarios: banco.usuarios,
     sesiones: banco.sesiones,
@@ -100,11 +98,12 @@ describe('API HTTP', () => {
     const body = z
       .object({ data: z.object({ api_key: z.string() }) })
       .parse(respuesta.body as unknown);
+    // Cuerpo vacio: la clave emitida pasa el control de API key y la peticion cae en la validacion.
     await request(app)
-      .post(`${base}/auth/forgot-password`)
+      .post(`${base}/auth/refresh`)
       .set('X-API-Key', body.data.api_key)
-      .send({ email: 'nadie@ejemplo.co' })
-      .expect(200);
+      .send({})
+      .expect(400);
   });
 
   it('valida registro, credenciales de cliente y cuerpo', async () => {
@@ -167,7 +166,7 @@ describe('API HTTP', () => {
     }
   });
 
-  it('renueva, consulta perfil, cambia contrasena y cierra sesion', async () => {
+  it('renueva, consulta perfil y cierra sesion', async () => {
     const login = await request(app)
       .post(`${base}/auth/login`)
       .set('X-API-Key', clave)
@@ -204,23 +203,6 @@ describe('API HTTP', () => {
       .parse(perfil.body as unknown).data.usuario;
     expect(usuario.email).toBe('a@ejemplo.co');
     expect(usuario).not.toHaveProperty('pass_hash');
-    await request(app)
-      .post(`${base}/auth/change-password`)
-      .set('X-API-Key', clave)
-      .send({})
-      .expect(401);
-    await request(app)
-      .post(`${base}/auth/change-password`)
-      .set('X-API-Key', clave)
-      .auth(acceso, { type: 'bearer' })
-      .send({ password_actual: 'Incorrecta1', nueva_password: 'NuevaClave2' })
-      .expect(400);
-    await request(app)
-      .post(`${base}/auth/change-password`)
-      .set('X-API-Key', clave)
-      .auth(acceso, { type: 'bearer' })
-      .send({ password_actual: password, nueva_password: 'NuevaClave2' })
-      .expect(200);
     await request(app).post(`${base}/auth/logout`).set('X-API-Key', clave).expect(401);
     const salida = await request(app)
       .post(`${base}/auth/logout`)
@@ -228,45 +210,6 @@ describe('API HTTP', () => {
       .auth(acceso, { type: 'bearer' })
       .expect(200);
     expect(salida.headers['clear-site-data']).toBeDefined();
-  });
-
-  it('no revela cuentas y verifica enlaces de reseteo de un solo uso', async () => {
-    const ruta = `${base}/auth/forgot-password`;
-    const existe = await request(app)
-      .post(ruta)
-      .set('X-API-Key', clave)
-      .send({ email: 'a@ejemplo.co' })
-      .expect(200);
-    const token = tokenCorreo();
-    const ausente = await request(app)
-      .post(ruta)
-      .set('X-API-Key', clave)
-      .send({ email: 'ausente@ejemplo.co' })
-      .expect(200);
-    const mensaje = z.object({ message: z.string() });
-    expect(mensaje.parse(existe.body as unknown).message).toBe(
-      mensaje.parse(ausente.body as unknown).message,
-    );
-    await request(app)
-      .get(`${base}/auth/reset-password`)
-      .set('X-API-Key', clave)
-      .query({ token })
-      .expect(200);
-    await request(app)
-      .get(`${base}/auth/reset-password`)
-      .set('X-API-Key', clave)
-      .query({ token: 'invalido' })
-      .expect(400);
-    await request(app)
-      .post(`${base}/auth/reset-password`)
-      .set('X-API-Key', clave)
-      .send({ token, nueva_password: 'OtraClave3' })
-      .expect(200);
-    await request(app)
-      .get(`${base}/auth/reset-password`)
-      .set('X-API-Key', clave)
-      .query({ token })
-      .expect(400);
   });
 
   it('limita por correo normalizado despues de diez intentos', async () => {

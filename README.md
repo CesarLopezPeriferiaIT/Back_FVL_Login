@@ -41,7 +41,7 @@ bun install
 cp .env.example .env
 
 # Definir en el archivo .env lo que el compose exige de forma explicita:
-# JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, JWT_RESET_SECRET, DB_USER y DB_PASSWORD.
+# JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET, DB_USER y DB_PASSWORD.
 # El servidor de base de datos ya viene apuntado a la instancia desplegada en la plantilla.
 
 # Aplicar el esquema. Si la base de datos todavia no existe, el script la crea de forma
@@ -83,10 +83,9 @@ creacion: solo lee esos archivos y los envia al servidor.
 | -------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------- |
 | `db/init/00-create-database.sql` | Crea la base de datos si no existe. Sustituye la variable `$(DB_NAME)` por el valor de `DB_DATABASE`. | Contra `master`                 |
 | `db/init/01-schema.sql`          | Las tablas `usuario`, `log_session` y `api_key` con sus indices y restricciones.                      | Contra la base de la aplicacion |
-| `db/init/02-pin-acceso.sql`      | El pin de acceso de la cuenta: verificador argon2id, dispositivo, intentos y revocación.              | Contra la base de la aplicación |
 | `db/scripts/unlock-user.sql`     | Procedimiento manual para desbloquear una cuenta desactivada.                                         | Contra la base de la aplicacion |
 
-Los tres son idempotentes: pueden ejecutarse varias veces sin duplicar objetos. Los archivos se
+Los tres scripts de `db/init/` son idempotentes: pueden ejecutarse varias veces sin duplicar objetos. Los archivos se
 aplican en orden alfabetico y cada bloque separado por `GO` se envia como un lote independiente,
 por lo que tambien se pueden aplicar a mano con `sqlcmd`, sin depender de Node:
 
