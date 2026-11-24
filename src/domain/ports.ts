@@ -9,12 +9,22 @@
  */
 import type {
   ApiKey,
+  CodigoConfirmacion,
   EstadoUsuario,
   LogSession,
   Permiso,
   TipoCliente,
   Usuario,
 } from './entities.js';
+
+/** Acceso a los codigos de confirmacion. */
+export interface CodigoConfirmacionRepository {
+  guardar(codigo: CodigoConfirmacion): Promise<void>;
+  buscarNoConsumidoPorUsuario(uuidUsuario: string): Promise<CodigoConfirmacion | null>;
+  registrarIntentoFallido(uuid: string): Promise<number>;
+  marcarUsado(uuid: string): Promise<void>;
+  invalidar(uuid: string): Promise<void>;
+}
 
 /** Acceso a las cuentas de usuario. */
 export interface UsuarioRepository {

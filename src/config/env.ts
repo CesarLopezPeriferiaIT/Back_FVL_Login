@@ -47,6 +47,8 @@ const envSchema = z.object({
   JWT_ISSUER: z.string().min(1).default('fvl-login'),
   JWT_AUDIENCE: z.string().min(1).default('fvl-clients'),
 
+  CONFIRM_CODE_TTL_HOURS: z.coerce.number().int().positive().default(24),
+  CONFIRM_CODE_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
   DB_SERVER: z.string().min(1),
@@ -67,6 +69,8 @@ const envSchema = z.object({
   RATE_LIMIT_LOGIN_PER_IP: z.coerce.number().int().positive().default(50),
   RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   RATE_LIMIT_REGISTER_PER_IP: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_CONFIRM_PER_IDENTIFIER: z.coerce.number().int().positive().default(10),
+  RATE_LIMIT_CONFIRM_PER_IP: z.coerce.number().int().positive().default(30),
 
   SMTP_HOST: z.string().default(''),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
@@ -106,6 +110,7 @@ export interface AppConfig {
     connectTimeoutMs: number;
     poolAcquireTimeoutMs: number;
   };
+  confirmacion: { ttlHours: number; maxIntentos: number };
   refresh: { ttlDays: number };
   cors: { allowedOrigins: string[] };
   trustedProxyCidrs: string[];
@@ -114,6 +119,8 @@ export interface AppConfig {
     loginPerIp: number;
     windowMinutes: number;
     registerPerIp: number;
+    confirmPerIdentifier: number;
+    confirmPerIp: number;
   };
   mail: {
     host: string;
@@ -157,6 +164,10 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     connectTimeoutMs: valores.DB_POOL_CONNECT_TIMEOUT,
     poolAcquireTimeoutMs: valores.DB_POOL_ACQUIRE_TIMEOUT,
   },
+  confirmacion: {
+    ttlHours: valores.CONFIRM_CODE_TTL_HOURS,
+    maxIntentos: valores.CONFIRM_CODE_MAX_ATTEMPTS,
+  },
   refresh: { ttlDays: valores.REFRESH_TOKEN_TTL_DAYS },
   cors: { allowedOrigins: valores.CORS_ALLOWED_ORIGINS },
   trustedProxyCidrs: valores.TRUSTED_PROXY_CIDRS,
@@ -165,6 +176,8 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     loginPerIp: valores.RATE_LIMIT_LOGIN_PER_IP,
     windowMinutes: valores.RATE_LIMIT_WINDOW_MINUTES,
     registerPerIp: valores.RATE_LIMIT_REGISTER_PER_IP,
+    confirmPerIdentifier: valores.RATE_LIMIT_CONFIRM_PER_IDENTIFIER,
+    confirmPerIp: valores.RATE_LIMIT_CONFIRM_PER_IP,
   },
   mail: {
     host: valores.SMTP_HOST,

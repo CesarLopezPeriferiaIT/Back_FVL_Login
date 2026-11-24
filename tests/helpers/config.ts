@@ -37,6 +37,7 @@ export const configDePrueba = (): AppConfig => ({
     connectTimeoutMs: 5000,
     poolAcquireTimeoutMs: 60000,
   },
+  confirmacion: { ttlHours: 24, maxIntentos: 5 },
   refresh: { ttlDays: 30 },
   cors: { allowedOrigins: ['https://app.pruebas.fvl.org.co'] },
   trustedProxyCidrs: ['127.0.0.1/32'],
@@ -45,6 +46,8 @@ export const configDePrueba = (): AppConfig => ({
     loginPerIp: 50,
     windowMinutes: 15,
     registerPerIp: 20,
+    confirmPerIdentifier: 10,
+    confirmPerIp: 30,
   },
   mail: {
     host: '',

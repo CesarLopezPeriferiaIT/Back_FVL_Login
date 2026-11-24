@@ -24,6 +24,17 @@ export const PERMISOS = {
 /** Union de los alcances de autorizacion existentes. */
 export type Permiso = (typeof PERMISOS)[keyof typeof PERMISOS];
 
+/** Codigo de confirmacion persistido. */
+export interface CodigoConfirmacion {
+  uuid: string;
+  uuidUsuario: string;
+  codigoHash: string;
+  expiraEn: Date;
+  intentos: number;
+  invalidado: boolean;
+  usadoEn: Date | null;
+}
+
 /** Cuenta de usuario persistida. */
 export interface Usuario {
   uuid: string;
