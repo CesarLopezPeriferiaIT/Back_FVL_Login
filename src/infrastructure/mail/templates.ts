@@ -36,12 +36,6 @@ const envolver = (titulo: string, cuerpo: string): string => `<!doctype html>
   </body>
 </html>`;
 
-const boton = (enlace: string, texto: string): string =>
-  `<p style="margin:24px 0;">
-     <a href="${enlace}" style="display:inline-block;padding:12px 20px;background:#0b3d6b;color:#ffffff;text-decoration:none;border-radius:6px;">${texto}</a>
-   </p>
-   <p style="margin:0;font-size:12px;color:#52606d;word-break:break-all;">Si el enlace no funciona, copie esta direccion en su navegador:<br />${enlace}</p>`;
-
 const horasRestantes = (expiraEn: Date): number =>
   Math.max(1, Math.ceil((expiraEn.getTime() - Date.now()) / 3600000));
 
@@ -63,25 +57,3 @@ export const plantillaCodigoConfirmacion = (params: {
     ),
   };
 };
-
-/**
- * Construye el correo de confirmacion de la cuenta.
- */
-export const plantillaConfirmacion = (params: { enlace: string }): ContenidoCorreo => ({
-  asunto: 'Confirme su cuenta en el portal de la Fundacion Valle del Lili',
-  texto: [
-    'Hola,',
-    '',
-    'Gracias por registrarse. Confirme su cuenta con el siguiente enlace para poder iniciar sesion.',
-    '',
-    params.enlace,
-    '',
-    'El enlace expira en 24 horas.',
-  ].join('\n'),
-  html: envolver(
-    'Confirme su cuenta',
-    `<p style="margin:0 0 8px;line-height:1.5;">Gracias por registrarse en el portal de la Fundacion Valle del Lili.</p>
-     <p style="margin:0 0 8px;line-height:1.5;">Confirme su cuenta para poder iniciar sesion.</p>
-     ${boton(params.enlace, 'Confirmar mi cuenta')}`,
-  ),
-});

@@ -11,7 +11,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 ### Cambiado
 
--La confirmación de correo por enlace se reemplazó por un código OTP de 6 dígitos enviado por correo.
+-La confirmación de correo por enlace se reemplazó por un código OTP de 6 dígitos enviado por correo. Antes del despliegue del servicio es obligatorio aplicar `db/init/02-codigo-confirmacion.sql` por separado del esquema general, porque la base de datos desplegada es compartida con otra aplicación.
 
 ### Eliminado
 

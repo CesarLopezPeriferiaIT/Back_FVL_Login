@@ -86,14 +86,17 @@ AWS RDS CA. Para validar el certificado, hay que instalar esa cadena en la image
 Todo el DDL vive en archivos `.sql`. El script `bun run db:init` no contiene sentencias de
 creacion: solo lee esos archivos y los envia al servidor.
 
-| Archivo                          | Que define                                                                                            | Donde se aplica                 |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `db/init/00-create-database.sql` | Crea la base de datos si no existe. Sustituye la variable `$(DB_NAME)` por el valor de `DB_DATABASE`. | Contra `master`                 |
-| `db/init/01-schema.sql`          | Las tablas `usuario`, `log_session` y `api_key` con sus indices y restricciones.                      | Contra la base de la aplicacion |
-| `db/scripts/unlock-user.sql`     | Procedimiento manual para desbloquear una cuenta desactivada.                                         | Contra la base de la aplicacion |
+| Archivo                              | Que define                                                                                            | Donde se aplica                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `db/init/00-create-database.sql`     | Crea la base de datos si no existe. Sustituye la variable `$(DB_NAME)` por el valor de `DB_DATABASE`. | Contra `master`                 |
+| `db/init/01-schema.sql`              | Las tablas `usuario`, `log_session` y `api_key` con sus indices y restricciones.                      | Contra la base de la aplicacion |
+| `db/init/02-codigo-confirmacion.sql` | Crea la tabla `dbo.codigo_confirmacion`.                                                              | Contra la base de la aplicacion |
+| `db/scripts/unlock-user.sql`         | Procedimiento manual para desbloquear una cuenta desactivada.                                         | Contra la base de la aplicacion |
 
-Los tres scripts de `db/init/` son idempotentes: pueden ejecutarse varias veces sin duplicar objetos. Los archivos se
-aplican en orden alfabetico y cada bloque separado por `GO` se envia como un lote independiente,
+Antes de desplegar el servicio se debe aplicar `db/init/02-codigo-confirmacion.sql` por separado
+del esquema general, porque la base de datos desplegada es compartida con otra aplicacion.
+
+Los tres scripts de `db/init/` son idempotentes: pueden ejecutarse varias veces sin duplicar objetos. Cada bloque separado por `GO` se envia como un lote independiente,
 por lo que tambien se pueden aplicar a mano con `sqlcmd`, sin depender de Node:
 
 ```bash

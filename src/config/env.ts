@@ -1,9 +1,9 @@
 /**
- * Carga y validacion de la configuracion del servicio a partir de variables de entorno.
+ * Load and validate service configuration from environment variables.
  *
- * La validacion falla de forma explicita cuando falta un valor obligatorio o cuando un secreto
- * no cumple la longitud minima, porque los lineamientos exigen no dejar configuraciones por
- * defecto en los ambientes de despliegue.
+ * Validation fails explicitly when a required value is missing or a secret does not meet
+ * the minimum length, because the guidelines prohibit default configuration values
+ * in deployment environments.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0

@@ -290,3 +290,19 @@ El mecanismo de enlace desaparece, asi que su soporte tambien:
   - Queda pendiente que el responsable actualice la plantilla de variables de entorno del
     repositorio: el agente no puede editarla porque la politica de seguridad del entorno bloquea esa
     ruta. El detalle de las variables esta en el CHANGELOG.
+- L10 (2026-11-24) - Correccion posterior a la verificacion independiente, con hallazgos
+  reproducibles y no solo lectura de codigo:
+  - Alta: la activacion de la cuenta no estaba condicionada al estado vigente del codigo, de modo
+    que una validacion correcta que ya habia quedado en vuelo podia completar y activar la cuenta
+    despues de que el quinto fallo invalidara el codigo. El limite de intentos dejaba de ser
+    autoritativo. Se corrigio con una activacion condicional en una sola sentencia, que exige que
+    el codigo siga sin usar, sin invalidar y sin vencer en el instante de la escritura, y que la
+    cuenta este en estado `C`. Se agrego prueba de regresion que reproduce la carrera con una
+    comparacion bloqueada.
+  - Media: permanecia el correo por enlace, ya sin uso. Se retiraron `enviarConfirmacion`,
+    `plantillaConfirmacion` y el helper `boton`.
+  - Media: faltaban las variables de la confirmacion en el compose y la instruccion de aplicar
+    `db/init/02-codigo-confirmacion.sql` antes del despliegue. Se completaron en el compose, el
+    README y el CHANGELOG.
+  - Media: las cabeceras JSDoc de los archivos de dominio modificados estaban en espanol. Se
+    normalizaron en ingles, conforme a D12.

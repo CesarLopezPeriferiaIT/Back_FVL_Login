@@ -34,6 +34,8 @@ services:
       PORT: "3000"
       MAIL_TRANSPORT: console
       LOG_LEVEL: info
+      CONFIRM_CODE_TTL_HOURS: ${CONFIRM_CODE_TTL_HOURS:-24}
+      CONFIRM_CODE_MAX_ATTEMPTS: ${CONFIRM_CODE_MAX_ATTEMPTS:-5}
       TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"
       # Los secretos no tienen valor por defecto: compose los toma del archivo .env de la raiz del
       # proyecto y falla de forma explicita si no estan definidos. El .env nunca se versiona.
