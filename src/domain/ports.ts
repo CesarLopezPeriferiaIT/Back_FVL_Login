@@ -1,8 +1,8 @@
 /**
- * Contratos que la capa de aplicacion exige a la infraestructura.
+ * Contracts required by the application layer from the infrastructure.
  *
- * Los repositorios se declaran como interfaces para que el dominio no dependa de SQL Server y
- * pueda probarse con dobles en memoria.
+ * Repositories are declared as interfaces so the domain does not depend on SQL Server and
+ * can be tested with in-memory doubles.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -32,6 +32,7 @@ export interface UsuarioRepository {
   findByUuid(uuid: string): Promise<Usuario | null>;
   create(nuevoUsuario: NuevoUsuario): Promise<Usuario>;
   updateEstado(uuid: string, estado: EstadoUsuario): Promise<void>;
+  activarConCodigoVigente(uuidUsuario: string, uuidCodigo: string): Promise<boolean>;
 }
 
 /** Datos minimos para persistir una cuenta nueva. */

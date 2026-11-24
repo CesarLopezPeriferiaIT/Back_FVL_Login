@@ -95,6 +95,25 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       return usuario;
     },
 
+    activarConCodigoVigente: async (uuidUsuario, uuidCodigo) => {
+      const usuario = estado.usuarios.find((item) => item.uuid === uuidUsuario);
+      const codigo = estado.codigos.find((item) => item.uuid === uuidCodigo);
+      const ahora = new Date();
+      if (
+        !usuario ||
+        usuario.estado !== 'C' ||
+        !codigo ||
+        codigo.uuidUsuario !== uuidUsuario ||
+        codigo.usadoEn !== null ||
+        codigo.invalidado ||
+        codigo.expiraEn <= ahora
+      )
+        return false;
+      usuario.estado = 'A';
+      usuario.fechaModificacion = ahora;
+      return true;
+    },
+
     updateEstado: async (uuid: string, nuevoEstado: EstadoUsuario) => {
       const usuario = estado.usuarios.find((item) => item.uuid === uuid);
       if (usuario) {

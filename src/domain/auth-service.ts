@@ -1,5 +1,5 @@
 /**
- * Reglas de negocio del registro, la confirmacion de correo y el inicio de sesion.
+ * Business rules for registration, email confirmation, and login.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -228,7 +228,14 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
     }): Promise<UsuarioPublico> => {
       const { usuario, uuidCodigo } = await codigos.validar(email, codigo);
 
-      await usuarios.updateEstado(usuario.uuid, 'A');
+      const activado = await usuarios.activarConCodigoVigente(usuario.uuid, uuidCodigo);
+      if (!activado) {
+        throw new AppError(
+          'CODIGO_CONFIRMACION_INVALIDADO',
+          'El codigo de confirmacion se invalido por demasiados intentos fallidos.',
+          429,
+        );
+      }
       await codigos.marcarUsado(uuidCodigo);
 
       return toUsuarioPublico({ ...usuario, estado: 'A' });

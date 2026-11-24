@@ -71,6 +71,70 @@ const registrarActivo = async (): Promise<{
 };
 
 describe('confirmacion con codigo', () => {
+  it('rechaza la validacion en vuelo si el codigo se invalida', async () => {
+    const banco = crearBancoEnMemoria();
+    const config = configDePrueba();
+    let liberar = (): void => {};
+    let avisar = (): void => {};
+    const bloqueado = new Promise<void>((resolve) => {
+      liberar = resolve;
+    });
+    const iniciado = new Promise<void>((resolve) => {
+      avisar = resolve;
+    });
+    let correcto = '';
+    const hasherBloqueante = {
+      hash: (valor: string) => hasher.hash(valor),
+      verify: async (hash: string, valor: string): Promise<boolean> => {
+        if (valor === correcto) {
+          avisar();
+          await bloqueado;
+        }
+        return hasher.verify(hash, valor);
+      },
+    };
+    const codigos = createCodigoConfirmacionService({
+      codigos: banco.codigos,
+      usuarios: banco.usuarios,
+      hasher: hasherBloqueante,
+      config,
+      logger: createLogger('error'),
+    });
+    const authService = createAuthService({
+      usuarios: banco.usuarios,
+      sesiones: banco.sesiones,
+      hasher: hasherBloqueante,
+      tokens: createTokenService(config),
+      correo: createMailService(banco.correo),
+      codigos,
+      config,
+      logger: createLogger('error'),
+    });
+    const usuario = insertarUsuario(banco, {
+      email: 'carrera@ejemplo.co',
+      passHash: 'hash',
+      estado: 'C',
+    });
+    correcto = (await codigos.generar(usuario.email)).codigo;
+    const incorrecto = correcto === '000000' ? '000001' : '000000';
+    const enVuelo = authService.confirmarCodigo({ email: usuario.email, codigo: correcto });
+    await iniciado;
+    for (let intento = 0; intento < 4; intento += 1) {
+      await expect(
+        authService.confirmarCodigo({ email: usuario.email, codigo: incorrecto }),
+      ).rejects.toMatchObject({ codigo: 'CODIGO_CONFIRMACION_INVALIDO', status: 400 });
+    }
+    await expect(
+      authService.confirmarCodigo({ email: usuario.email, codigo: incorrecto }),
+    ).rejects.toMatchObject({ codigo: 'CODIGO_CONFIRMACION_INVALIDADO', status: 429 });
+    liberar();
+    await expect(enVuelo).rejects.toMatchObject({
+      codigo: 'CODIGO_CONFIRMACION_INVALIDADO',
+      status: 429,
+    });
+    expect(usuario.estado).toBe('C');
+    expect(banco.estado.codigos[0]?.usadoEn).toBeNull();
+  });
   it('activa la cuenta antes de consumir el codigo', async () => {
     const { banco, authService, config } = crearServicio();
     const usuario = insertarUsuario(banco, {

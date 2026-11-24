@@ -80,6 +80,19 @@ export const createUsuarioRepository = (pool: Database): UsuarioRepository => ({
     return toUsuario(fila);
   },
 
+  activarConCodigoVigente: async (uuidUsuario, uuidCodigo): Promise<boolean> => {
+    const result = await pool
+      .request()
+      .input('uuidUsuario', sql.UniqueIdentifier, uuidUsuario)
+      .input('uuidCodigo', sql.UniqueIdentifier, uuidCodigo).query(`UPDATE dbo.usuario
+        SET estado = 'A', fecha_modificacion = SYSUTCDATETIME()
+        WHERE uuid = @uuidUsuario AND estado = 'C'
+          AND EXISTS (SELECT 1 FROM dbo.codigo_confirmacion
+            WHERE uuid = @uuidCodigo AND uuid_usuario = @uuidUsuario
+              AND usado_en IS NULL AND invalidado = 0 AND expira_en > SYSUTCDATETIME())`);
+    return result.rowsAffected[0] === 1;
+  },
+
   updateEstado: async (uuid: string, estado: EstadoUsuario): Promise<void> => {
     await pool
       .request()
