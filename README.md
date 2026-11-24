@@ -116,8 +116,18 @@ sqlcmd -S hpp-dev-sql.cul4syiguuqq.us-east-1.rds.amazonaws.com -U '<usuario>' -P
 Al completar el registro y aceptar los terminos y condiciones, la cuenta queda en estado `C`
 y se envia por correo un codigo de 6 digitos. Se almacena como hash argon2id en
 `dbo.codigo_confirmacion`, nunca en texto plano. La persona lo digita en la aplicacion, que
-envia `POST /auth/confirm-email` con `{"email": "...", "codigo": "123456"}`. La cuenta pasa
-a `A` y la respuesta es 200 con `Correo confirmado.`. El antiguo GET por enlace ya no existe.
+envia la solicitud siguiente con una API Key que tenga el permiso `auth:confirm-email`:
+
+```bash
+curl -X POST 'http://localhost:3000/backend/dev/v1/auth/confirm-email' \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: REEMPLAZAR_CON_API_KEY' \
+  -d '{"email":"usuario@ejemplo.com","codigo":"123456"}'
+```
+
+Sustituya la API Key y, si corresponde, la direccion del servicio. El codigo va en el cuerpo,
+nunca en la URL. La cuenta pasa a `A` y la respuesta es 200 con `Correo confirmado.`.
+El antiguo GET por enlace ya no existe.
 
 El codigo vence en 24 horas por defecto; el quinto intento fallido lo invalida y responde 429.
 El endpoint devuelve `USUARIO_NO_ENCONTRADO` (404), `CUENTA_YA_CONFIRMADA` (409),

@@ -24,7 +24,7 @@ sequenceDiagram
     participant Correo as Servidor de correo
     App->>Seguro: Buscar API Key
     Seguro->>App: No existe clave
-    App->>Backend: POST /installations/register, nombre App movil FVL, tipo_cliente mobile
+    App->>Backend: POST /installations/register, nombre Aplicacion movil, tipo_cliente mobile
     Backend->>App: 201, data.api_key en texto plano, una sola vez
     App->>Seguro: Guardar API Key
     Note over App,Backend: Enviar X-API-Key en las peticiones posteriores
@@ -59,7 +59,7 @@ sequenceDiagram
     end
 ```
 
-El código se envía en el cuerpo JSON `{"email":"usuario@example.org","codigo":"123456"}`, nunca en la URL. Tiene vigencia de 24 horas (`CONFIRM_CODE_TTL_HOURS`); el quinto fallo lo invalida y responde 429 (`CONFIRM_CODE_MAX_ATTEMPTS`, por defecto 5). Se persiste hasheado con argon2id en `dbo.codigo_confirmacion`, nunca en texto plano. El registro dispara el envío: quien integra el flujo llama a `generar` del servicio de códigos, que lo genera y persiste, y entrega después el código al servicio de correo.
+La persona digita el código en la aplicación; la aplicación, no el navegador, llama al endpoint con su API Key y el permiso `auth:confirm-email`. El código se envía en el cuerpo JSON `{"email":"usuario@ejemplo.com","codigo":"123456"}`, nunca en la URL. La respuesta es 200 con `Correo confirmado.` y la cuenta queda en `A`. Tiene vigencia de 24 horas por defecto (`CONFIRM_CODE_TTL_HOURS`); el quinto fallo lo invalida y responde 429 (`CONFIRM_CODE_MAX_ATTEMPTS`, por defecto 5). Se persiste hasheado con argon2id en `dbo.codigo_confirmacion`, nunca en texto plano. El registro dispara el envío: quien integra el flujo llama a `generar` del servicio de códigos, que lo genera y persiste, y entrega después el código al servicio de correo.
 
 ## 3. Inicio, uso, renovación y cierre de sesión
 
@@ -109,7 +109,7 @@ stateDiagram-v2
 
 ## Referencia de endpoints
 
-Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key` salvo el registro de instalación; solo `logout` y `me` exigen además Bearer. Los enlaces abiertos por navegador también necesitan la API Key mediante un cliente o intermediario autorizado.
+Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key` salvo el registro de instalación; solo `logout` y `me` exigen además Bearer. La confirmación por enlace ya no existe.
 
 | Método | Ruta                          | Alcance              | Cuándo se invoca                          | Cuerpo o consulta                                                                   | Respuesta resumida                                                    |
 | ------ | ----------------------------- | -------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -137,8 +137,8 @@ Los umbrales y la ventana son configurables; estos son los valores predeterminad
 | Inicio por identificador | 10 intentos fallidos para el mismo correo en 15 minutos activan `429 RATE_LIMIT_EXCEDIDO`.                                                     |
 | Inicio por IP            | 50 intentos por IP en 15 minutos.                                                                                                              |
 | Registro por IP          | 20 registros por IP en 15 minutos.                                                                                                             |
-| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en `RATE_LIMIT_WINDOW_MINUTES`.                                                              |
-| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en `RATE_LIMIT_WINDOW_MINUTES`.                                                                      |
+| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                                              |
+| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                                                      |
 | Código de confirmación   | Vigencia de 24 horas; el quinto fallo invalida el código y responde 429.                                                                       |
 | Desactivación            | 10 fallos consecutivos dejan la cuenta en `D`; después el login responde `403 CUENTA_DESACTIVADA`. Es un control distinto del límite temporal. |
 | Recuperación de `D`      | Manual en base de datos con `db/scripts/unlock-user.sql`; no existe endpoint administrativo.                                                   |
@@ -152,7 +152,7 @@ Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado
 | `VALIDACION_FALLIDA`             | 400       | Mostrar los detalles y corregir la entrada.                                            |
 | `USUARIO_YA_EXISTE`              | 409       | Informar que el correo ya está registrado.                                             |
 | `CREDENCIALES_INVALIDAS`         | 401       | Solicitar corrección sin reintentos automáticos.                                       |
-| `TOKEN_INVALIDO`                 | 400 o 401 | En enlaces, solicitar uno nuevo; en Bearer, comprobar expiración y renovar si procede. |
+| `TOKEN_INVALIDO`                 | 400 o 401 | En Bearer, comprobar expiración y renovar si procede. |
 | `TOKEN_REQUERIDO`                | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión.             |
 | `SESION_INVALIDA`                | 401       | Descartar los tokens y solicitar inicio de sesión.                                     |
 | `CUENTA_POR_CONFIRMAR`           | 403       | Indicar que debe confirmar el correo.                                                  |
