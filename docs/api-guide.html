@@ -108,7 +108,6 @@
           resultado o null.
         </p>
         <pre><code>{"message":"Servicio disponible.","error":null,"code":0,"data":{"servicio":"login","version":1,"ambiente":"dev"}}</code></pre>
-        <pre><code>{"message":"Correo o contrasena incorrectos.","error":{"codigo":"CREDENCIALES_INVALIDAS","detalles":[]},"code":401,"data":null}</code></pre>
       </section>
       <section>
         <h2>Autenticación y convenciones</h2>
@@ -235,22 +234,44 @@ HTTP/1.1 201 Created
           <h3>POST /backend/dev/v1/auth/login</h3>
           <p>
             Alcance <code>auth:login</code>; cabeceras <code>X-API-Key</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code> y
-            <code>password</code>, cadenas.
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code>. La
+            respuesta no revela si el correo esta registrado. Si falla el envio SMTP,
+            <code>correo_enviado</code> es false.
           </p>
           <pre><code>POST /backend/dev/v1/auth/login HTTP/1.1
 X-API-Key: CLAVE_EJEMPLO
 Content-Type: application/json
 
-{"email":"usuario@example.org","password":"Ejemplo123"}
+{"email":"usuario@example.org"}
+
+HTTP/1.1 200 OK
+{"message":"Si la cuenta esta registrada y activa, te enviamos un codigo de acceso a tu correo electronico.","error":null,"code":0,"data":{"correo_enviado":true}}</code></pre>
+          <p>
+            Errores: <code>CUENTA_POR_CONFIRMAR</code>, <code>CUENTA_INACTIVA</code>,
+            <code>CUENTA_DESACTIVADA</code> (403), <code>RATE_LIMIT_EXCEDIDO</code> (429).
+          </p>
+        </section>
+        <section>
+          <h3>POST /backend/dev/v1/auth/login/code</h3>
+          <p>
+            Alcance <code>auth:login</code>; envie el correo y el codigo de 6 digitos recibido por
+            correo. El quinto fallo invalida el codigo por defecto; diez verificaciones fallidas
+            consecutivas desactivan la cuenta.
+          </p>
+          <pre><code>POST /backend/dev/v1/auth/login/code HTTP/1.1
+X-API-Key: CLAVE_EJEMPLO
+Content-Type: application/json
+
+{"email":"usuario@example.org","codigo":"123456"}
 
 HTTP/1.1 200 OK
 {"message":"Sesion iniciada.","error":null,"code":0,"data":{"token_acceso":"TOKEN_ACCESO","token_refresh":"TOKEN_REFRESH","token_type":"Bearer","expires_in":900,"refresh_expires_at":"2026-12-11T12:00:00.000Z","usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
           <p>
             Errores adicionales: <code>VALIDACION_FALLIDA</code>,
-            <code>CREDENCIALES_INVALIDAS</code>, <code>CUENTA_POR_CONFIRMAR</code>,
-            <code>CUENTA_INACTIVA</code>, <code>CUENTA_DESACTIVADA</code>,
-            <code>RATE_LIMIT_EXCEDIDO</code>.
+            <code>CODIGO_ACCESO_NO_EXISTE</code>, <code>CODIGO_ACCESO_VENCIDO</code>,
+            <code>CODIGO_ACCESO_INVALIDO</code>, <code>CODIGO_ACCESO_INVALIDADO</code> (401),
+            <code>CUENTA_POR_CONFIRMAR</code> (403), <code>CUENTA_INACTIVA</code>,
+            <code>CUENTA_DESACTIVADA</code>, <code>RATE_LIMIT_EXCEDIDO</code>.
           </p>
         </section>
         <section>
@@ -380,11 +401,8 @@ HTTP/1.1 200 OK
         </section>
       </section>
       <section>
-        <h2>Contraseñas, estados y seguridad</h2>
-        <p>
-          La contraseña tiene entre 8 y 72 caracteres, al menos una letra ASCII y un dígito y no
-          admite espacios en blanco. Se almacena como hash argon2id, nunca en texto plano.
-        </p>
+        <h2>Codigos, estados y seguridad</h2>
+        <p>El codigo de acceso se almacena como hash argon2id y vence en 10 minutos por defecto.</p>
         <table>
           <caption>
             Estados de cuenta
@@ -458,9 +476,12 @@ HTTP/1.1 200 OK
               <td>Correo registrado.</td>
             </tr>
             <tr>
-              <td>CREDENCIALES_INVALIDAS</td>
+              <td>
+                CODIGO_ACCESO_NO_EXISTE, CODIGO_ACCESO_VENCIDO, CODIGO_ACCESO_INVALIDO,
+                CODIGO_ACCESO_INVALIDADO
+              </td>
               <td>401</td>
-              <td>Credenciales incorrectas.</td>
+              <td>Codigo inexistente, vencido, incorrecto o invalidado.</td>
             </tr>
             <tr>
               <td>CUENTA_POR_CONFIRMAR</td>
@@ -657,7 +678,9 @@ curl -X POST "$BASE/installations/register" -H 'Content-Type: application/json' 
 curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}'
 # Obtenga el código recibido por correo.
 curl -X POST "$BASE/auth/confirm-email" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","codigo":"123456"}'
-curl -X POST "$BASE/auth/login" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123"}'
+curl -X POST "$BASE/auth/login" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org"}'
+# Obtenga el codigo de acceso recibido por correo.
+curl -X POST "$BASE/auth/login/code" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","codigo":"123456"}'
 # Copie data.token_refresh en REFRESH; sustituya el anterior por el nuevo tras renovar.
 curl -X POST "$BASE/auth/refresh" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$REFRESH\"}"</code></pre>
       </section>

@@ -70,8 +70,14 @@ sequenceDiagram
     participant App as Aplicación móvil
     participant Seguro as expo-secure-store
     participant Backend as Backend
-    Persona->>App: Introducir correo y contraseña
-    App->>Backend: POST /auth/login con X-API-Key, email y password
+    participant Correo as Servidor de correo
+    Persona->>App: Introducir correo
+    App->>Backend: POST /auth/login con X-API-Key y email
+    Backend->>Correo: Enviar codigo de acceso de 6 digitos
+    Backend->>App: 200, correo_enviado
+    Correo->>Persona: Codigo de acceso
+    Persona->>App: Introducir codigo
+    App->>Backend: POST /auth/login/code con X-API-Key, email y codigo
     Backend->>App: 200, token_acceso, token_refresh y datos de sesión
     App->>Seguro: Guardar ambos tokens
     rect rgb(235, 245, 250)
@@ -92,7 +98,7 @@ sequenceDiagram
     App->>Seguro: Borrar ambos tokens
 ```
 
-El login devuelve `data.token_acceso`, `data.token_refresh`, `data.token_type` (`Bearer`), `data.expires_in` (900 segundos por defecto), `data.refresh_expires_at` y `data.usuario`. El acceso es JWT; el refresh es opaco y dura 30 días por defecto. Las duraciones son configurables. `GET /auth/me` devuelve UUID, correo, estado, `tyc` y fechas, nunca el hash de contraseña. El cierre revoca la sesión para renovaciones: el JWT se verifica por firma y vigencia, por lo que debe descartarse en el cliente. La cabecera exacta exclusiva del cierre es `Clear-Site-Data: "cache","cookies","storage"`.
+La verificacion del codigo devuelve `data.token_acceso`, `data.token_refresh`, `data.token_type` (`Bearer`), `data.expires_in` (900 segundos por defecto), `data.refresh_expires_at` y `data.usuario`. El acceso es JWT; el refresh es opaco y dura 30 días por defecto. Las duraciones son configurables. `GET /auth/me` devuelve UUID, correo, estado, `tyc` y fechas. El cierre revoca la sesión para renovaciones: el JWT se verifica por firma y vigencia, por lo que debe descartarse en el cliente. La cabecera exacta exclusiva del cierre es `Clear-Site-Data: "cache","cookies","storage"`.
 
 ## Estados de la cuenta
 
@@ -100,7 +106,7 @@ El login devuelve `data.token_acceso`, `data.token_refresh`, `data.token_type` (
 stateDiagram-v2
     [*] --> C: POST /auth/register
     C --> A: POST /auth/confirm-email con código
-    A --> D: POST /auth/login, diez fallos consecutivos
+    A --> D: POST /auth/login/code, diez fallos consecutivos
     D --> A: Desbloqueo manual en base de datos
     D --> I: Desbloqueo manual en base de datos
 ```
@@ -115,7 +121,8 @@ Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key`
 | ------ | ----------------------------- | -------------------- | ----------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | POST   | `/installations/register`     | Público              | Primer arranque o clave inválida/revocada | `nombre`, `tipo_cliente`                                                | 201, `data.api_key` una sola vez.                                     |
 | POST   | `/auth/register`              | `auth:register`      | Crear cuenta                              | `email`, `tyc`, `codigo_departamento`, `codigo_municipio`, `codigo_rol` | 201, `usuario` y `correo_confirmacion_enviado`.                       |
-| POST   | `/auth/login`                 | `auth:login`         | Iniciar sesión                            | `email`, `password`                                                     | 200, tokens y usuario.                                                |
+| POST   | `/auth/login`                 | `auth:login`         | Solicitar codigo                          | `email`                                                                 | 200, `correo_enviado`.                                                |
+| POST   | `/auth/login/code`            | `auth:login`         | Verificar codigo                          | `email`, `codigo`                                                       | 200, tokens y usuario.                                                |
 | POST   | `/auth/confirm-email`         | `auth:confirm-email` | Confirmar correo desde la app             | `email`, `codigo`                                                       | 200, usuario activo.                                                  |
 | POST   | `/auth/refresh`               | `auth:refresh`       | Renovar sesión                            | `refresh_token`                                                         | 200, tokens nuevos y usuario.                                         |
 | POST   | `/auth/logout`                | `auth:logout`        | Cerrar sesión                             | Ninguno; Bearer                                                         | 200, sesión revocada.                                                 |
@@ -124,7 +131,7 @@ Las rutas siguientes son relativas a `/backend/dev/v1`. Todas exigen `X-API-Key`
 | GET    | `/catalog/get-departments`    | `catalog:read`       | Llenar el selector de departamento        | Ninguno; sin Bearer                                                     | 200, `data.departamentos` con `codigo` y `nombre`.                    |
 | GET    | `/catalog/get-municipalities` | `catalog:read`       | Llenar el selector de municipio           | Consulta opcional `department` (2 dígitos); sin Bearer                  | 200, `data.municipios` con `codigo`, `nombre`, `codigo_departamento`. |
 
-Además, `GET /` y `GET /health` son diagnósticos públicos sin prefijo; no forman parte del flujo de negocio. El catálogo de negocio tiene 11 operaciones.
+Además, `GET /` y `GET /health` son diagnósticos públicos sin prefijo; no forman parte del flujo de negocio. El catálogo de negocio tiene 12 operaciones.
 
 Los catálogos no llevan Bearer porque se consultan durante el registro, cuando la persona aún no tiene sesión; sí exigen la API Key con el alcance `catalog:read`. Los códigos de departamento (`"05"`) y de municipio (`"05001"`) son texto y conservan los ceros a la izquierda; el código del rol es numérico.
 
@@ -132,16 +139,17 @@ Los catálogos no llevan Bearer porque se consultan durante el registro, cuando 
 
 Los umbrales y la ventana son configurables; estos son los valores predeterminados.
 
-| Control                  | Límite o acción                                                                                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inicio por identificador | 10 intentos fallidos para el mismo correo en 15 minutos activan `429 RATE_LIMIT_EXCEDIDO`.                                                     |
-| Inicio por IP            | 50 intentos por IP en 15 minutos.                                                                                                              |
-| Registro por IP          | 20 registros por IP en 15 minutos.                                                                                                             |
-| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                     |
-| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                             |
-| Código de confirmación   | Vigencia de 24 horas; el quinto fallo invalida el código y responde 429.                                                                       |
-| Desactivación            | 10 fallos consecutivos dejan la cuenta en `D`; después el login responde `403 CUENTA_DESACTIVADA`. Es un control distinto del límite temporal. |
-| Recuperación de `D`      | Manual en base de datos con `db/scripts/unlock-user.sql`; no existe endpoint administrativo.                                                   |
+| Control                  | Límite o acción                                                                                                                                                 |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inicio por identificador | 10 intentos fallidos para el mismo correo en 15 minutos activan `429 RATE_LIMIT_EXCEDIDO`.                                                                      |
+| Inicio por IP            | 50 intentos por IP en 15 minutos.                                                                                                                               |
+| Registro por IP          | 20 registros por IP en 15 minutos.                                                                                                                              |
+| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                                      |
+| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                                              |
+| Código de confirmación   | Vigencia de 24 horas; el quinto fallo invalida el código y responde 429.                                                                                        |
+| Codigo de acceso         | Vigencia de 10 minutos; el quinto fallo invalida el codigo por defecto.                                                                                         |
+| Desactivación            | 10 verificaciones fallidas consecutivas dejan la cuenta en `D`; después el login responde `403 CUENTA_DESACTIVADA`. Es un control distinto del límite temporal. |
+| Recuperación de `D`      | Manual en base de datos con `db/scripts/unlock-user.sql`; no existe endpoint administrativo.                                                                    |
 
 ## Errores y acciones
 
@@ -151,7 +159,10 @@ Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado
 | -------------------------------- | --------- | -------------------------------------------------------------------------- |
 | `VALIDACION_FALLIDA`             | 400       | Mostrar los detalles y corregir la entrada.                                |
 | `USUARIO_YA_EXISTE`              | 409       | Informar que el correo ya está registrado.                                 |
-| `CREDENCIALES_INVALIDAS`         | 401       | Solicitar corrección sin reintentos automáticos.                           |
+| `CODIGO_ACCESO_NO_EXISTE`        | 401       | Solicitar un codigo.                                                       |
+| `CODIGO_ACCESO_VENCIDO`          | 401       | Solicitar un codigo nuevo.                                                 |
+| `CODIGO_ACCESO_INVALIDO`         | 401       | Corregir el codigo.                                                        |
+| `CODIGO_ACCESO_INVALIDADO`       | 401       | Solicitar un codigo nuevo.                                                 |
 | `TOKEN_INVALIDO`                 | 400 o 401 | En Bearer, comprobar expiración y renovar si procede.                      |
 | `TOKEN_REQUERIDO`                | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión. |
 | `SESION_INVALIDA`                | 401       | Descartar los tokens y solicitar inicio de sesión.                         |

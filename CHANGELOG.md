@@ -6,6 +6,9 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 ### Agregado
 
+-Inicio de sesion con codigo de 6 digitos enviado por correo y tabla `dbo.codigo_login`.
+-Endpoint `POST /auth/login/code` para verificar el codigo y obtener los tokens.
+-Variables `LOGIN_CODE_TTL_MINUTES` (10), `LOGIN_CODE_MAX_ATTEMPTS` (5), `RATE_LIMIT_LOGIN_CODE_PER_IDENTIFIER` (5) y `RATE_LIMIT_LOGIN_CODE_PER_IP` (20).
 -Catálogos geográficos DANE: tablas `catalogo_departamento` (33) y `catalogo_municipio` (1.120) en `db/init/02-catalogos-geograficos.sql`, con códigos `VARCHAR`.
 -Endpoints `GET /catalog/get-departments` y `GET /catalog/get-municipalities?department=NN`, protegidos solo con API Key (alcance `catalog:read`), sin token de usuario para poder usarse en el registro. Las API Key emitidas antes no tienen el alcance y deben reemitirse en `/installations/register`.
 -Catálogo de roles: tabla `catalogo_rol` (5 filas, código numérico) en `db/init/03-catalogo-rol.sql` y endpoint `GET /catalog/get-roles`, con el mismo alcance `catalog:read`.
@@ -14,12 +17,13 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 
 ### Cambiado
 
--`POST /auth/register` exige `codigo_departamento`, `codigo_municipio` y `codigo_rol`, que se guardan en `usuario` (columnas `NOT NULL` con FK a los catálogos, `db/init/04-usuario-catalogos.sql`). Un código inexistente responde `400 CATALOGO_INVALIDO`. Los clientes actuales deben enviar los tres campos.
+-`POST /auth/login` solicita el codigo con el correo. Antes de desplegar el servicio, aplicar `db/init/06-codigo-login.sql` por separado con sqlcmd en la base desplegada compartida.
+\-`POST /auth/register` exige `codigo_departamento`, `codigo_municipio` y `codigo_rol`, que se guardan en `usuario` (columnas `NOT NULL` con FK a los catálogos, `db/init/04-usuario-catalogos.sql`). Un código inexistente responde `400 CATALOGO_INVALIDO`. Los clientes actuales deben enviar los tres campos.
 -La confirmación de correo por enlace se reemplazó por un código OTP de 6 dígitos enviado por correo. Antes del despliegue del servicio es obligatorio aplicar `db/init/02-codigo-confirmacion.sql` por separado del esquema general, porque la base de datos desplegada es compartida con otra aplicación.
 
 ### Eliminado
 
--La contraseña del registro: `POST /auth/register` ya no la recibe y la columna `pass_hash` se elimina de `usuario` (`db/init/05-usuario-sin-password.sql`). El login no se modificó: sin la columna, valida contra un hash vacío y responde `CREDENCIALES_INVALIDAS` hasta que se defina el inicio de sesión por OTP.
+-La contrasena del registro y del inicio de sesion: ningun endpoint la recibe y la columna `pass_hash` se elimina de `usuario` (`db/init/05-usuario-sin-password.sql`).
 -El token JWT de confirmación y las variables `JWT_CONFIRM_SECRET` y `JWT_CONFIRM_TTL`.
 -Endpoints de contraseña `forgot-password`, `reset-password` (GET y POST) y `change-password`, con su lógica de servicio, token de reseteo, plantilla de correo y variables `JWT_RESET_SECRET` y `JWT_RESET_TTL`.
 -Endpoints de pin de acceso `/auth/pin/configurar`, `/auth/pin/verificar` y `/auth/pin/revocar`, con su servicio, repositorio, validadores y el script `db/init/02-pin-acceso.sql`. `/auth/me` ya no devuelve `pin_configurado`.

@@ -70,6 +70,8 @@ La confirmacion usa `CONFIRM_CODE_TTL_HOURS` (24 horas por defecto) y
 `JWT_CONFIRM_SECRET`, `JWT_CONFIRM_TTL` ni `PUBLIC_BASE_URL`. La plantilla `.env.example`
 esta pendiente de actualizacion antes del proximo despliegue.
 
+El acceso usa `LOGIN_CODE_TTL_MINUTES` (10 minutos) y `LOGIN_CODE_MAX_ATTEMPTS` (5 intentos). Los limites de solicitud son `RATE_LIMIT_LOGIN_CODE_PER_IDENTIFIER` (5 por correo) y `RATE_LIMIT_LOGIN_CODE_PER_IP` (20 por IP), en la misma ventana.
+
 En los ambientes de calidad y produccion la base de datos la crea el administrador de bases de
 datos y el rol de la aplicacion solo necesita permisos de lectura y escritura sobre ella. En ese
 caso el script nunca intenta crearla y solo aplica el esquema.
@@ -93,12 +95,12 @@ creacion: solo lee esos archivos y los envia al servidor.
 | `db/init/02-codigo-confirmacion.sql`   | Crea la tabla `dbo.codigo_confirmacion`.                                                                                                             | Contra la base de la aplicacion |
 | `db/init/02-catalogos-geograficos.sql` | Las tablas `catalogo_departamento` (33) y `catalogo_municipio` (1.120) con los codigos DANE como `VARCHAR`.                                          | Contra la base de la aplicacion |
 | `db/init/03-catalogo-rol.sql`          | La tabla `catalogo_rol` (codigo numerico, nombre y area de servicio).                                                                                | Contra la base de la aplicacion |
+| `db/init/06-codigo-login.sql`          | Crea la tabla `dbo.codigo_login`.                                                                                                                    | Contra la base de la aplicacion |
 | `db/init/05-usuario-sin-password.sql`  | Elimina la columna `pass_hash` de `usuario`.                                                                                                         | Contra la base de la aplicacion |
 | `db/init/04-usuario-catalogos.sql`     | Agrega a `usuario` las columnas `codigo_departamento`, `codigo_municipio` y `codigo_rol` (`NOT NULL`, con FK a los catalogos). Exige la tabla vacia. | Contra la base de la aplicacion |
 | `db/scripts/unlock-user.sql`           | Procedimiento manual para desbloquear una cuenta desactivada.                                                                                        | Contra la base de la aplicacion |
 
-Antes de desplegar el servicio se debe aplicar `db/init/02-codigo-confirmacion.sql` por separado
-del esquema general, porque la base de datos desplegada es compartida con otra aplicacion.
+Antes de desplegar el servicio se deben aplicar `db/init/02-codigo-confirmacion.sql` y `db/init/06-codigo-login.sql` por separado con `sqlcmd`, porque la base de datos desplegada es compartida con otra aplicacion.
 
 Los scripts de `db/init/` son idempotentes: pueden ejecutarse varias veces sin duplicar objetos. Cada bloque separado por `GO` se envia como un lote independiente,
 por lo que tambien se pueden aplicar a mano con `sqlcmd`, sin depender de Node:
