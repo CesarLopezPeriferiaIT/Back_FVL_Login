@@ -119,6 +119,41 @@ describe('documentacion de la API', () => {
     expect(propiedades['tyc']?.['type']).toBe('boolean');
   });
 
+  it('publica ejemplos no vacios y compatibles con los patrones de cada cuerpo', async () => {
+    const documento = await documentoDePrueba();
+    const paths = documento['paths'] as Record<string, Record<string, Record<string, unknown>>>;
+    let cantidad = 0;
+    for (const ruta of Object.values(paths)) {
+      for (const operacion of Object.values(ruta)) {
+        if (!operacion['requestBody']) continue;
+        cantidad += 1;
+        const cuerpo = operacion['requestBody'] as {
+          content: Record<
+            string,
+            {
+              example?: Record<string, unknown>;
+              schema: { properties: Record<string, { pattern?: string }> };
+            }
+          >;
+        };
+        for (const contenido of Object.values(cuerpo.content)) {
+          expect(contenido.example).toBeDefined();
+          const ejemplo = contenido.example ?? {};
+          expect(Object.keys(ejemplo).length).toBeGreaterThan(0);
+          for (const [nombre, valor] of Object.entries(ejemplo)) {
+            if (typeof valor !== 'string') continue;
+            expect(valor).not.toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+            if (nombre === 'email') expect(valor).toMatch(/^[^@\s]+@[^@\s]+\.[^@\s]+$/);
+            if (nombre === 'codigo') expect(valor).toMatch(/^\d{6}$/);
+            const patron = contenido.schema.properties[nombre]?.pattern;
+            if (patron) expect(valor).toMatch(new RegExp(patron));
+          }
+        }
+      }
+    }
+    expect(cantidad).toBeGreaterThan(0);
+  });
+
   it('documenta los codigos de error con su estado HTTP', async () => {
     const documento = await documentoDePrueba();
     const paths = documento['paths'] as Record<string, Record<string, Record<string, unknown>>>;

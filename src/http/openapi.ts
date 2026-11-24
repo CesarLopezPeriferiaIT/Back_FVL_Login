@@ -260,9 +260,14 @@ const respuestasDeError = (...errores: readonly ErrorCatalogado[]): ResponsesObj
   return respuestas;
 };
 
-const cuerpoDePeticion = (esquema: z.ZodType): RequestBodyObject => ({
+const cuerpoDePeticion = (esquema: z.ZodType, ejemplo?: unknown): RequestBodyObject => ({
   required: true,
-  content: { 'application/json': { schema: esquemaJson(esquema) } },
+  content: {
+    'application/json': {
+      schema: esquemaJson(esquema),
+      ...(ejemplo === undefined ? {} : { example: ejemplo }),
+    },
+  },
 });
 
 const seguridadApiKey: SecurityRequirementObject[] = [{ ApiKey: [] }];
@@ -393,7 +398,10 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'Es la unica ruta que no exige API Key. Entrega la credencial del cliente en texto ' +
             'plano una sola vez: despues solo queda su hash SHA-256 en la base de datos.',
           security: [],
-          requestBody: cuerpoDePeticion(instalacionSchema),
+          requestBody: cuerpoDePeticion(instalacionSchema, {
+            nombre: 'Aplicacion movil',
+            tipo_cliente: 'mobile',
+          }),
           responses: {
             '201': {
               description: 'Instalacion registrada.',
@@ -414,7 +422,11 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'aceptan los terminos y condiciones, la cuenta se crea igual pero no se envia el ' +
             'correo, de modo que no queda un registro a medio completar.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(registroSchema),
+          requestBody: cuerpoDePeticion(registroSchema, {
+            email: 'usuario@ejemplo.com',
+            password: 'ClaveSegura123',
+            tyc: true,
+          }),
           responses: {
             '201': {
               description: 'Cuenta registrada.',
@@ -441,7 +453,10 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'Valida las credenciales y devuelve el token de acceso junto con el token de ' +
             'renovacion. Diez intentos fallidos consecutivos desactivar la cuenta.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(loginSchema),
+          requestBody: cuerpoDePeticion(loginSchema, {
+            email: 'usuario@ejemplo.com',
+            password: 'ClaveSegura123',
+          }),
           responses: {
             '200': {
               description: 'Sesion iniciada.',
@@ -467,9 +482,12 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
         post: {
           tags: ['Autenticacion'],
           summary: 'Confirma el correo de la cuenta',
-          description: 'Activa la cuenta que estaba en estado por confirmar.',
+          description: 'Activa la cuenta con el codigo de seis digitos recibido por correo.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(confirmacionSchema),
+          requestBody: cuerpoDePeticion(confirmacionSchema, {
+            email: 'usuario@ejemplo.com',
+            codigo: '123456',
+          }),
           responses: {
             '200': {
               description: 'Correo confirmado.',
@@ -525,7 +543,9 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'Entrega un token de acceso nuevo y rota el token de renovacion. El token anterior ' +
             'queda invalidado de inmediato.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(refreshSchema),
+          requestBody: cuerpoDePeticion(refreshSchema, {
+            refresh_token: '9f4c1a7d2b8e60f35c4a19d7e2f60b83',
+          }),
           responses: {
             '200': {
               description: 'Sesion renovada.',
