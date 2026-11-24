@@ -13,12 +13,14 @@ import { loadConfig } from './config/env.js';
 import { createApiKeyService } from './domain/api-key-service.js';
 import { createAuthService } from './domain/auth-service.js';
 import { createCodigoConfirmacionService } from './domain/codigo-confirmacion-service.js';
+import { createCodigoLoginService } from './domain/codigo-login-service.js';
 import { createMailService } from './domain/mail-service.js';
 import { createPasswordHasher } from './domain/password-hasher.js';
 import { createTokenService } from './domain/token-service.js';
 import { createApiKeyRepository } from './infrastructure/database/api-key.repository.js';
 import { createCatalogoRepository } from './infrastructure/database/catalogo.repository.js';
 import { createCodigoConfirmacionRepository } from './infrastructure/database/codigo-confirmacion.repository.js';
+import { createCodigoLoginRepository } from './infrastructure/database/codigo-login.repository.js';
 import { closePool, createPool } from './infrastructure/database/pool.js';
 import { createLogSessionRepository } from './infrastructure/database/log-session.repository.js';
 import { createUsuarioRepository } from './infrastructure/database/usuario.repository.js';
@@ -32,6 +34,7 @@ const main = async (): Promise<void> => {
 
   const usuarios = createUsuarioRepository(pool);
   const repositorioCodigos = createCodigoConfirmacionRepository(pool);
+  const repositorioCodigosAcceso = createCodigoLoginRepository(pool);
   const hasher = createPasswordHasher();
   const codigos = createCodigoConfirmacionService({
     codigos: repositorioCodigos,
@@ -41,9 +44,18 @@ const main = async (): Promise<void> => {
     logger,
   });
 
+  const codigosAcceso = createCodigoLoginService({
+    codigos: repositorioCodigosAcceso,
+    usuarios,
+    hasher,
+    config,
+    logger,
+  });
+
   const authService = createAuthService({
     usuarios,
     codigos,
+    codigosAcceso,
     sesiones: createLogSessionRepository(pool),
     hasher,
     tokens: createTokenService(config),
