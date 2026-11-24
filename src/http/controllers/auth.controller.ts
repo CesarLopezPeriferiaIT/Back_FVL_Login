@@ -9,21 +9,15 @@ import type { AuthService, ResultadoSesion } from '../../domain/auth-service.js'
 import { AppError } from '../../shared/errors.js';
 import { responderOk } from '../http-response.js';
 import {
+  confirmacionSchema,
   loginSchema,
   refreshSchema,
   registroSchema,
-  tokenSchema,
 } from '../validators/auth.validators.js';
 
 const sesion = (req: Request): NonNullable<Request['sesion']> => {
   if (!req.sesion) throw new AppError('TOKEN_REQUERIDO', 'Se requiere un token de acceso.', 401);
   return req.sesion;
-};
-const tokenEntrada = (req: Request): unknown => {
-  const body: unknown = req.body;
-  const tokenBody =
-    typeof body === 'object' && body !== null && 'token' in body ? body.token : undefined;
-  return { token: tokenBody ?? req.query['token'] };
 };
 const datosSesion = (resultado: ResultadoSesion): object => ({
   token_acceso: resultado.tokenAcceso,
@@ -65,8 +59,9 @@ export const crearAuthController = (service: AuthService): Record<string, Reques
     );
   },
   confirmar: async (req, res) => {
-    const { token } = tokenSchema.parse(tokenEntrada(req));
-    responderOk(res, 'Correo confirmado.', { usuario: await service.confirmarCorreo(token) });
+    const body: unknown = req.body;
+    const datos = confirmacionSchema.parse(body);
+    responderOk(res, 'Correo confirmado.', { usuario: await service.confirmarCodigo(datos) });
   },
   refresh: async (req, res) => {
     const body: unknown = req.body;

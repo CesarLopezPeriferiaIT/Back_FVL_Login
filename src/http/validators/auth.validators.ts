@@ -24,5 +24,5 @@ export const registroSchema = z
     message: 'El municipio no pertenece al departamento indicado.',
   });
 export const loginSchema = z.object({ email, password });
-export const tokenSchema = z.object({ token: z.string().min(1) });
+export const confirmacionSchema = z.object({ email, codigo: z.string().regex(/^\d{6}$/) });
 export const refreshSchema = z.object({ refresh_token: z.string().min(1) });

@@ -12,7 +12,13 @@ import { responderError } from '../http-response.js';
 
 export const crearLimitadores = (
   config: AppConfig,
-): { identificador: RequestHandler; loginIp: RequestHandler; registroIp: RequestHandler } => {
+): {
+  identificador: RequestHandler;
+  loginIp: RequestHandler;
+  registroIp: RequestHandler;
+  confirmacionIdentificador: RequestHandler;
+  confirmacionIp: RequestHandler;
+} => {
   const base = {
     windowMs: config.rateLimit.windowMinutes * 60_000,
     standardHeaders: true,
@@ -37,6 +43,22 @@ export const crearLimitadores = (
         return ip(req);
       },
     }),
+    confirmacionIdentificador: rateLimit({
+      ...base,
+      limit: config.rateLimit.confirmPerIdentifier,
+      keyGenerator: (req) => {
+        const body: unknown = req.body;
+        if (
+          typeof body === 'object' &&
+          body !== null &&
+          'email' in body &&
+          typeof body.email === 'string'
+        )
+          return normalizarEmail(body.email);
+        return ip(req);
+      },
+    }),
+    confirmacionIp: rateLimit({ ...base, limit: config.rateLimit.confirmPerIp, keyGenerator: ip }),
     loginIp: rateLimit({ ...base, limit: config.rateLimit.loginPerIp, keyGenerator: ip }),
     registroIp: rateLimit({ ...base, limit: config.rateLimit.registerPerIp, keyGenerator: ip }),
   };

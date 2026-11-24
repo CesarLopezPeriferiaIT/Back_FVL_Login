@@ -10,7 +10,6 @@
 import { z } from 'zod';
 import type {
   OpenAPIObject,
-  ParameterObject,
   RequestBodyObject,
   ResponsesObject,
   SchemaObject,
@@ -21,7 +20,7 @@ import {
   loginSchema,
   refreshSchema,
   registroSchema,
-  tokenSchema,
+  confirmacionSchema,
 } from './validators/auth.validators.js';
 import { instalacionSchema } from './validators/installation.validators.js';
 
@@ -209,6 +208,26 @@ const ERRORES = {
     status: '409',
     descripcion: 'La cuenta ya fue confirmada.',
   },
+  codigoNoExiste: {
+    codigo: 'CODIGO_CONFIRMACION_NO_EXISTE',
+    status: '404',
+    descripcion: 'No hay un codigo de confirmacion vigente para esta cuenta.',
+  },
+  codigoVencido: {
+    codigo: 'CODIGO_CONFIRMACION_VENCIDO',
+    status: '400',
+    descripcion: 'El codigo de confirmacion vencio. Solicite un nuevo codigo.',
+  },
+  codigoInvalido: {
+    codigo: 'CODIGO_CONFIRMACION_INVALIDO',
+    status: '400',
+    descripcion: 'El codigo de confirmacion no coincide.',
+  },
+  codigoInvalidado: {
+    codigo: 'CODIGO_CONFIRMACION_INVALIDADO',
+    status: '429',
+    descripcion: 'El codigo de confirmacion se invalido por demasiados intentos fallidos.',
+  },
   sesionInvalida: {
     codigo: 'SESION_INVALIDA',
     status: '401',
@@ -241,20 +260,15 @@ const respuestasDeError = (...errores: readonly ErrorCatalogado[]): ResponsesObj
   return respuestas;
 };
 
-const cuerpoDePeticion = (esquema: z.ZodType): RequestBodyObject => ({
+const cuerpoDePeticion = (esquema: z.ZodType, ejemplo?: unknown): RequestBodyObject => ({
   required: true,
-  content: { 'application/json': { schema: esquemaJson(esquema) } },
-});
-
-const parametroToken = (descripcion: string): ParameterObject[] => [
-  {
-    name: 'token',
-    in: 'query',
-    required: true,
-    description: descripcion,
-    schema: { type: 'string', minLength: 1 },
+  content: {
+    'application/json': {
+      schema: esquemaJson(esquema),
+      ...(ejemplo === undefined ? {} : { example: ejemplo }),
+    },
   },
-];
+});
 
 const seguridadApiKey: SecurityRequirementObject[] = [{ ApiKey: [] }];
 const seguridadApiKeyYUsuario: SecurityRequirementObject[] = [{ ApiKey: [], Bearer: [] }];
@@ -388,7 +402,10 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'Es la unica ruta que no exige API Key. Entrega la credencial del cliente en texto ' +
             'plano una sola vez: despues solo queda su hash SHA-256 en la base de datos.',
           security: [],
-          requestBody: cuerpoDePeticion(instalacionSchema),
+          requestBody: cuerpoDePeticion(instalacionSchema, {
+            nombre: 'Aplicacion movil',
+            tipo_cliente: 'mobile',
+          }),
           responses: {
             '201': {
               description: 'Instalacion registrada.',
@@ -411,7 +428,14 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'municipio y el rol son obligatorios y deben existir en los catalogos; si no, responde ' +
             '400 con el codigo CATALOGO_INVALIDO.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(registroSchema),
+          requestBody: cuerpoDePeticion(registroSchema, {
+            email: 'usuario@ejemplo.com',
+            password: 'ClaveSegura123',
+            tyc: true,
+            codigo_departamento: '76',
+            codigo_municipio: '76001',
+            codigo_rol: 1,
+          }),
           responses: {
             '201': {
               description: 'Cuenta registrada.',
@@ -438,7 +462,10 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'Valida las credenciales y devuelve el token de acceso junto con el token de ' +
             'renovacion. Diez intentos fallidos consecutivos desactivar la cuenta.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(loginSchema),
+          requestBody: cuerpoDePeticion(loginSchema, {
+            email: 'usuario@ejemplo.com',
+            password: 'ClaveSegura123',
+          }),
           responses: {
             '200': {
               description: 'Sesion iniciada.',
@@ -464,9 +491,12 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
         post: {
           tags: ['Autenticacion'],
           summary: 'Confirma el correo de la cuenta',
-          description: 'Activa la cuenta que estaba en estado por confirmar.',
+          description: 'Activa la cuenta con el codigo de seis digitos recibido por correo.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(tokenSchema),
+          requestBody: cuerpoDePeticion(confirmacionSchema, {
+            email: 'usuario@ejemplo.com',
+            codigo: '123456',
+          }),
           responses: {
             '200': {
               description: 'Correo confirmado.',
@@ -479,33 +509,38 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
               ERRORES.apiKeyRequerida,
               ERRORES.apiKeyInvalida,
               ERRORES.apiKeySinPermiso,
-              ERRORES.tokenInvalido,
               ERRORES.usuarioNoEncontrado,
               ERRORES.cuentaYaConfirmada,
+              ERRORES.codigoNoExiste,
+              ERRORES.codigoVencido,
+              ERRORES.codigoInvalido,
+              ERRORES.codigoInvalidado,
             ),
-          },
-        },
-        get: {
-          tags: ['Autenticacion'],
-          summary: 'Confirma el correo desde el enlace recibido',
-          description: 'Variante del enlace que llega por correo electronico.',
-          security: seguridadApiKey,
-          parameters: parametroToken('Token de confirmacion recibido por correo.'),
-          responses: {
-            '200': {
-              description: 'Correo confirmado.',
+            '400': {
+              description:
+                'VALIDACION_FALLIDA, CODIGO_CONFIRMACION_VENCIDO, CODIGO_CONFIRMACION_INVALIDO',
               content: {
-                'application/json': { schema: { $ref: '#/components/schemas/Respuesta' } },
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
               },
             },
-            ...respuestasDeError(
-              ERRORES.apiKeyRequerida,
-              ERRORES.apiKeyInvalida,
-              ERRORES.apiKeySinPermiso,
-              ERRORES.tokenInvalido,
-              ERRORES.usuarioNoEncontrado,
-              ERRORES.cuentaYaConfirmada,
-            ),
+            '404': {
+              description: 'USUARIO_NO_ENCONTRADO, CODIGO_CONFIRMACION_NO_EXISTE',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
+            '409': {
+              description: 'CUENTA_YA_CONFIRMADA',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
+            '429': {
+              description: 'CODIGO_CONFIRMACION_INVALIDADO',
+              content: {
+                'application/json': { schema: { $ref: '#/components/schemas/RespuestaError' } },
+              },
+            },
           },
         },
       },
@@ -517,7 +552,9 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
             'Entrega un token de acceso nuevo y rota el token de renovacion. El token anterior ' +
             'queda invalidado de inmediato.',
           security: seguridadApiKey,
-          requestBody: cuerpoDePeticion(refreshSchema),
+          requestBody: cuerpoDePeticion(refreshSchema, {
+            refresh_token: '9f4c1a7d2b8e60f35c4a19d7e2f60b83',
+          }),
           responses: {
             '200': {
               description: 'Sesion renovada.',

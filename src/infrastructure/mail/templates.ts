@@ -1,8 +1,8 @@
 /**
- * Plantillas de los correos que envia el servicio.
+ * Email templates sent by the service.
  *
- * El contenido esta en espanol porque es la communication directa con el usuario final de las
- * aplicaciones de la Fundacion.
+ * Content is in Spanish because it directly communicates with end users of the Foundation's
+ * applications.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -36,30 +36,24 @@ const envolver = (titulo: string, cuerpo: string): string => `<!doctype html>
   </body>
 </html>`;
 
-const boton = (enlace: string, texto: string): string =>
-  `<p style="margin:24px 0;">
-     <a href="${enlace}" style="display:inline-block;padding:12px 20px;background:#0b3d6b;color:#ffffff;text-decoration:none;border-radius:6px;">${texto}</a>
-   </p>
-   <p style="margin:0;font-size:12px;color:#52606d;word-break:break-all;">Si el enlace no funciona, copie esta direccion en su navegador:<br />${enlace}</p>`;
+const horasRestantes = (expiraEn: Date): number =>
+  Math.max(1, Math.ceil((expiraEn.getTime() - Date.now()) / 3600000));
 
-/**
- * Construye el correo de confirmacion de la cuenta.
- */
-export const plantillaConfirmacion = (params: { enlace: string }): ContenidoCorreo => ({
-  asunto: 'Confirme su cuenta en el portal de la Fundacion Valle del Lili',
-  texto: [
-    'Hola,',
-    '',
-    'Gracias por registrarse. Confirme su cuenta con el siguiente enlace para poder iniciar sesion.',
-    '',
-    params.enlace,
-    '',
-    'El enlace expira en 24 horas.',
-  ].join('\n'),
-  html: envolver(
-    'Confirme su cuenta',
-    `<p style="margin:0 0 8px;line-height:1.5;">Gracias por registrarse en el portal de la Fundacion Valle del Lili.</p>
-     <p style="margin:0 0 8px;line-height:1.5;">Confirme su cuenta para poder iniciar sesion.</p>
-     ${boton(params.enlace, 'Confirmar mi cuenta')}`,
-  ),
-});
+/** Construye el correo de confirmacion por codigo. */
+export const plantillaCodigoConfirmacion = (params: {
+  codigo: string;
+  expiraEn: Date;
+}): ContenidoCorreo => {
+  const horas = horasRestantes(params.expiraEn);
+  const vencimiento = `El codigo expira en ${horas} ${horas === 1 ? 'hora' : 'horas'}.`;
+  const mensaje =
+    'Gracias por registrarse. Confirme su cuenta con el siguiente codigo para poder iniciar sesion.';
+  return {
+    asunto: 'Confirme su cuenta en el portal de la Fundacion Valle del Lili',
+    texto: ['Hola,', mensaje, params.codigo, vencimiento].join('\n\n'),
+    html: envolver(
+      'Confirme su cuenta',
+      `<p>Hola,</p><p>${mensaje}</p><p style="font-size:24px;font-weight:bold;letter-spacing:2px;">${params.codigo}</p><p>${vencimiento}</p>`,
+    ),
+  };
+};

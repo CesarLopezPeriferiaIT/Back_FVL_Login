@@ -8,10 +8,17 @@
  * @version 1.0.0
  */
 import { randomUUID } from 'node:crypto';
-import type { ApiKey, EstadoUsuario, LogSession, Usuario } from '../../src/domain/entities.js';
+import type {
+  ApiKey,
+  CodigoConfirmacion,
+  EstadoUsuario,
+  LogSession,
+  Usuario,
+} from '../../src/domain/entities.js';
 import type {
   ApiKeyRepository,
   CatalogoRepository,
+  CodigoConfirmacionRepository,
   LogSessionRepository,
   MailSender,
   MensajeCorreo,
@@ -22,6 +29,7 @@ import { sha256 } from '../../src/shared/crypto.js';
 
 /** Estado observable del banco en memoria. */
 export interface EstadoBanco {
+  codigos: CodigoConfirmacion[];
   usuarios: Usuario[];
   sesiones: LogSession[];
   apiKeys: ApiKey[];
@@ -30,6 +38,7 @@ export interface EstadoBanco {
 
 /** Conjunto de dobles que representa la persistencia durante una prueba. */
 export interface BancoEnMemoria {
+  codigos: CodigoConfirmacionRepository;
   usuarios: UsuarioRepository;
   sesiones: LogSessionRepository;
   apiKeys: ApiKeyRepository;
@@ -42,7 +51,35 @@ export interface BancoEnMemoria {
  * Crea un banco en memoria con los repositorios vacios.
  */
 export const crearBancoEnMemoria = (): BancoEnMemoria => {
-  const estado: EstadoBanco = { usuarios: [], sesiones: [], apiKeys: [], correos: [] };
+  const estado: EstadoBanco = { codigos: [], usuarios: [], sesiones: [], apiKeys: [], correos: [] };
+
+  const codigos: CodigoConfirmacionRepository = {
+    guardar: async (codigo) => {
+      estado.codigos.push(codigo);
+    },
+    buscarNoConsumidoPorUsuario: async (uuid) =>
+      [...estado.codigos]
+        .reverse()
+        .find((c) => c.uuidUsuario === uuid && c.usadoEn === null && !c.invalidado) ?? null,
+    buscarUltimoPorUsuario: async (uuid) =>
+      [...estado.codigos].reverse().find((c) => c.uuidUsuario === uuid) ?? null,
+    registrarIntentoFallido: async (uuid, maxIntentos) => {
+      const codigo = estado.codigos.find((c) => c.uuid === uuid);
+      if (!codigo || codigo.usadoEn !== null || codigo.invalidado || codigo.expiraEn <= new Date())
+        return null;
+      codigo.intentos++;
+      if (codigo.intentos >= maxIntentos) codigo.invalidado = true;
+      return { intentos: codigo.intentos, invalidado: codigo.invalidado };
+    },
+    marcarUsado: async (uuid) => {
+      const codigo = estado.codigos.find((c) => c.uuid === uuid);
+      if (codigo) codigo.usadoEn = new Date();
+    },
+    invalidar: async (uuid) => {
+      const codigo = estado.codigos.find((c) => c.uuid === uuid);
+      if (codigo) codigo.invalidado = true;
+    },
+  };
 
   const usuarios: UsuarioRepository = {
     findByEmail: async (email: string) =>
@@ -63,6 +100,25 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       };
       estado.usuarios.push(usuario);
       return usuario;
+    },
+
+    activarConCodigoVigente: async (uuidUsuario, uuidCodigo) => {
+      const usuario = estado.usuarios.find((item) => item.uuid === uuidUsuario);
+      const codigo = estado.codigos.find((item) => item.uuid === uuidCodigo);
+      const ahora = new Date();
+      if (
+        !usuario ||
+        usuario.estado !== 'C' ||
+        !codigo ||
+        codigo.uuidUsuario !== uuidUsuario ||
+        codigo.usadoEn !== null ||
+        codigo.invalidado ||
+        codigo.expiraEn <= ahora
+      )
+        return false;
+      usuario.estado = 'A';
+      usuario.fechaModificacion = ahora;
+      return true;
     },
 
     updateEstado: async (uuid: string, nuevoEstado: EstadoUsuario) => {
@@ -188,7 +244,7 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       ),
   };
 
-  return { usuarios, sesiones, apiKeys, correo, catalogos, estado };
+  return { codigos, usuarios, sesiones, apiKeys, correo, catalogos, estado };
 };
 
 /**

@@ -1,14 +1,15 @@
 /**
- * Contratos que la capa de aplicacion exige a la infraestructura.
+ * Contracts required by the application layer from the infrastructure.
  *
- * Los repositorios se declaran como interfaces para que el dominio no dependa de SQL Server y
- * pueda probarse con dobles en memoria.
+ * Repositories are declared as interfaces so the domain does not depend on SQL Server and
+ * can be tested with in-memory doubles.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import type {
   ApiKey,
+  CodigoConfirmacion,
   Departamento,
   EstadoUsuario,
   LogSession,
@@ -19,12 +20,26 @@ import type {
   Usuario,
 } from './entities.js';
 
+/** Acceso a los codigos de confirmacion. */
+export interface CodigoConfirmacionRepository {
+  guardar(codigo: CodigoConfirmacion): Promise<void>;
+  buscarNoConsumidoPorUsuario(uuidUsuario: string): Promise<CodigoConfirmacion | null>;
+  buscarUltimoPorUsuario(uuidUsuario: string): Promise<CodigoConfirmacion | null>;
+  registrarIntentoFallido(
+    uuid: string,
+    maxIntentos: number,
+  ): Promise<{ intentos: number; invalidado: boolean } | null>;
+  marcarUsado(uuid: string): Promise<void>;
+  invalidar(uuid: string): Promise<void>;
+}
+
 /** Acceso a las cuentas de usuario. */
 export interface UsuarioRepository {
   findByEmail(email: string): Promise<Usuario | null>;
   findByUuid(uuid: string): Promise<Usuario | null>;
   create(nuevoUsuario: NuevoUsuario): Promise<Usuario>;
   updateEstado(uuid: string, estado: EstadoUsuario): Promise<void>;
+  activarConCodigoVigente(uuidUsuario: string, uuidCodigo: string): Promise<boolean>;
 }
 
 /** Datos minimos para persistir una cuenta nueva. */

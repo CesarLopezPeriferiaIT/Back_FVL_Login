@@ -1,5 +1,5 @@
 /**
- * Tipos de dominio compartidos por la capa de aplicacion y la capa de infraestructura.
+ * Domain types shared by the application and infrastructure layers.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -24,6 +24,17 @@ export const PERMISOS = {
 
 /** Union de los alcances de autorizacion existentes. */
 export type Permiso = (typeof PERMISOS)[keyof typeof PERMISOS];
+
+/** Codigo de confirmacion persistido. */
+export interface CodigoConfirmacion {
+  uuid: string;
+  uuidUsuario: string;
+  codigoHash: string;
+  expiraEn: Date;
+  intentos: number;
+  invalidado: boolean;
+  usadoEn: Date | null;
+}
 
 /** Cuenta de usuario persistida. */
 export interface Usuario {

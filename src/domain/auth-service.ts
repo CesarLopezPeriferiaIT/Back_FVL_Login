@@ -1,5 +1,5 @@
 /**
- * Reglas de negocio del registro, la confirmacion de correo y el inicio de sesion.
+ * Business rules for registration, email confirmation, and login.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -10,6 +10,7 @@ import { toUsuarioPublico } from './entities.js';
 import type { Usuario, UsuarioPublico } from './entities.js';
 import type { LogSessionRepository, UsuarioRepository } from './ports.js';
 import type { MailService } from './mail-service.js';
+import type { CodigoConfirmacionService } from './codigo-confirmacion-service.js';
 import type { PasswordHasher } from './password-hasher.js';
 import type { TokenService } from './token-service.js';
 import { generarTokenAleatorio, sha256 } from '../shared/crypto.js';
@@ -50,7 +51,7 @@ export interface DatosRegistro {
 export interface AuthService {
   registrar(params: DatosRegistro): Promise<ResultadoRegistro>;
   iniciarSesion(params: { email: string; password: string }): Promise<ResultadoSesion>;
-  confirmarCorreo(token: string): Promise<UsuarioPublico>;
+  confirmarCodigo(params: { email: string; codigo: string }): Promise<UsuarioPublico>;
   renovarSesion(tokenRefresh: string): Promise<ResultadoSesion>;
   cerrarSesion(sessionId: string): Promise<void>;
   consultarPerfil(uuidUsuario: string): Promise<UsuarioPublico>;
@@ -63,6 +64,7 @@ export interface AuthServiceDeps {
   hasher: PasswordHasher;
   tokens: TokenService;
   correo: MailService;
+  codigos: CodigoConfirmacionService;
   config: AppConfig;
   logger: Logger;
 }
@@ -71,12 +73,9 @@ export interface AuthServiceDeps {
  * Crea el servicio de autenticacion con las dependencias indicadas.
  */
 export const createAuthService = (deps: AuthServiceDeps): AuthService => {
-  const { usuarios, sesiones, hasher, tokens, correo, config, logger } = deps;
+  const { usuarios, sesiones, hasher, tokens, correo, codigos, config, logger } = deps;
 
   const duracionRefreshMs = config.refresh.ttlDays * 24 * 60 * 60 * 1000;
-
-  const construirEnlace = (ruta: string, token: string): string =>
-    `${config.publicBaseUrl}/backend/${config.ambiente}/v${config.apiVersion}/${ruta}?token=${encodeURIComponent(token)}`;
 
   const enviarCorreo = async (accion: () => Promise<void>): Promise<boolean> => {
     try {
@@ -185,10 +184,9 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
         return { usuario: toUsuarioPublico(usuario), correoConfirmacionEnviado: false };
       }
 
-      const token = tokens.crearTokenConfirmacion(correoNormalizado);
-      const enlace = construirEnlace('auth/confirm-email', token);
+      const { codigo, expiraEn } = await codigos.generar(correoNormalizado);
       const enviado = await enviarCorreo(() =>
-        correo.enviarConfirmacion(correoNormalizado, enlace),
+        correo.enviarCodigoConfirmacion(correoNormalizado, codigo, expiraEn),
       );
 
       return { usuario: toUsuarioPublico(usuario), correoConfirmacionEnviado: enviado };
@@ -248,23 +246,21 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
       return crearSesion(usuario);
     },
 
-    confirmarCorreo: async (token: string): Promise<UsuarioPublico> => {
-      const claims = tokens.verificarTokenConfirmacion(token);
-      const usuario = await usuarios.findByEmail(normalizarEmail(claims.email));
+    confirmarCodigo: async ({
+      email,
+      codigo,
+    }: {
+      email: string;
+      codigo: string;
+    }): Promise<UsuarioPublico> => {
+      const { usuario, uuidCodigo } = await codigos.validar(email, codigo);
 
-      if (!usuario) {
-        throw new AppError(
-          'USUARIO_NO_ENCONTRADO',
-          'No existe una cuenta asociada al enlace.',
-          404,
-        );
+      const activado = await usuarios.activarConCodigoVigente(usuario.uuid, uuidCodigo);
+      if (!activado) {
+        throw await codigos.clasificarFallo(email);
       }
+      await codigos.marcarUsado(uuidCodigo);
 
-      if (usuario.estado !== 'C') {
-        throw new AppError('CUENTA_YA_CONFIRMADA', 'La cuenta ya fue confirmada.', 409);
-      }
-
-      await usuarios.updateEstado(usuario.uuid, 'A');
       return toUsuarioPublico({ ...usuario, estado: 'A' });
     },
 

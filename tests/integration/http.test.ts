@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
+import { createCodigoConfirmacionService } from '../../src/domain/codigo-confirmacion-service.js';
 import { PERMISOS } from '../../src/domain/entities.js';
 import { createMailService } from '../../src/domain/mail-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
@@ -39,6 +40,13 @@ const app = createApp({
     usuarios: banco.usuarios,
     sesiones: banco.sesiones,
     hasher,
+    codigos: createCodigoConfirmacionService({
+      codigos: banco.codigos,
+      usuarios: banco.usuarios,
+      hasher,
+      config,
+      logger,
+    }),
     tokens,
     correo: createMailService(banco.correo),
     config,
@@ -46,11 +54,11 @@ const app = createApp({
   }),
 });
 
-const tokenCorreo = (): string => {
+const codigoCorreo = (): string => {
   const texto = banco.estado.correos.at(-1)?.texto ?? '';
-  const token = /token=([^\s]+)/.exec(texto)?.[1];
-  if (!token) throw new Error('No se encontro el token del correo');
-  return decodeURIComponent(token);
+  const codigo = /^\d{6}$/m.exec(texto)?.[0];
+  if (!codigo) throw new Error('No se encontro el codigo del correo');
+  return codigo;
 };
 
 describe('API HTTP', () => {
@@ -125,35 +133,74 @@ describe('API HTTP', () => {
     ])
       await request(app).post(ruta).set('X-API-Key', clave).send(invalido).expect(400);
     await request(app).post(ruta).set('X-API-Key', clave).send(datos).expect(201);
-    const token = tokenCorreo();
-    await request(app)
-      .post(`${base}/auth/confirm-email`)
-      .set('X-API-Key', clave)
-      .send({ token })
-      .expect(200);
-    await request(app)
-      .post(`${base}/auth/confirm-email`)
-      .set('X-API-Key', clave)
-      .send({ token: 'invalido' })
-      .expect(400);
+    expect(codigoCorreo()).toMatch(/^\d{6}$/);
+    expect(banco.estado.usuarios.find((usuario) => usuario.email === datos.email)?.estado).toBe(
+      'C',
+    );
   });
 
-  it('confirma enlaces por GET y rechaza tokens invalidos', async () => {
+  it('deja la cuenta por confirmar y envia un codigo', async () => {
     await request(app)
       .post(`${base}/auth/register`)
       .set('X-API-Key', clave)
       .send({ email: 'confirmar@ejemplo.co', password, tyc: true, ...ubicacion })
       .expect(201);
+    expect(codigoCorreo()).toMatch(/^\d{6}$/);
+    expect(
+      banco.estado.usuarios.find((usuario) => usuario.email === 'confirmar@ejemplo.co')?.estado,
+    ).toBe('C');
+  });
+
+  it('confirma por codigo y rechaza una segunda confirmacion', async () => {
+    const email = 'otp@ejemplo.co';
     await request(app)
-      .get(`${base}/auth/confirm-email`)
+      .post(`${base}/auth/register`)
       .set('X-API-Key', clave)
-      .query({ token: tokenCorreo() })
+      .send({ email, password, tyc: true, ...ubicacion })
+      .expect(201);
+    const codigo = codigoCorreo();
+    const respuesta = await request(app)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email, codigo })
       .expect(200);
-    await request(app)
-      .get(`${base}/auth/confirm-email`)
+    expect(respuesta.body).toMatchObject({ message: 'Correo confirmado.' });
+    expect(banco.estado.usuarios.find((usuario) => usuario.email === email)?.estado).toBe('A');
+    const repetida = await request(app)
+      .post(`${base}/auth/confirm-email`)
       .set('X-API-Key', clave)
-      .query({ token: 'invalido' })
+      .send({ email, codigo })
+      .expect(409);
+    expect(repetida.body).toMatchObject({ error: { codigo: 'CUENTA_YA_CONFIRMADA' } });
+  });
+
+  it('rechaza el codigo incorrecto y vencido', async () => {
+    const email = 'otp-vencido@ejemplo.co';
+    await request(app)
+      .post(`${base}/auth/register`)
+      .set('X-API-Key', clave)
+      .send({ email, password, tyc: true, ...ubicacion })
+      .expect(201);
+    const codigo = codigoCorreo();
+    const incorrecto = codigo === '000000' ? '000001' : '000000';
+    const respuesta = await request(app)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email, codigo: incorrecto })
       .expect(400);
+    expect(respuesta.body).toMatchObject({ error: { codigo: 'CODIGO_CONFIRMACION_INVALIDO' } });
+    const usuario = banco.estado.usuarios.find((item) => item.email === email);
+    const registro = banco.estado.codigos.find((item) => item.uuidUsuario === usuario?.uuid);
+    if (!registro) throw new Error('Codigo no encontrado');
+    registro.expiraEn = new Date(0);
+    const vencido = await request(app)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email, codigo })
+      .expect(400);
+    expect(vencido.body).toMatchObject({ error: { codigo: 'CODIGO_CONFIRMACION_VENCIDO' } });
+    expect(usuario?.estado).toBe('C');
+    expect(registro.usadoEn).toBeNull();
   });
 
   it('rechaza credenciales incorrectas y cuentas no activas', async () => {
@@ -263,6 +310,94 @@ describe('API HTTP', () => {
       .query({ department: '7' })
       .set('X-API-Key', clave)
       .expect(400);
+  });
+
+  it('limita las confirmaciones por correo normalizado', async () => {
+    const configLimite = {
+      ...config,
+      rateLimit: { ...config.rateLimit, confirmPerIdentifier: 1, confirmPerIp: 30 },
+    };
+    const bancoLimite = crearBancoEnMemoria();
+    insertarApiKey(bancoLimite, clave, Object.values(PERMISOS));
+    const authService = createAuthService({
+      usuarios: bancoLimite.usuarios,
+      sesiones: bancoLimite.sesiones,
+      hasher,
+      tokens,
+      correo: createMailService(bancoLimite.correo),
+      codigos: createCodigoConfirmacionService({
+        codigos: bancoLimite.codigos,
+        usuarios: bancoLimite.usuarios,
+        hasher,
+        config: configLimite,
+        logger,
+      }),
+      config: configLimite,
+      logger,
+    });
+    const appLimite = createApp({
+      config: configLimite,
+      logger,
+      authService,
+      tokenService: tokens,
+      apiKeyService: createApiKeyService(bancoLimite.apiKeys),
+      catalogoRepository: bancoLimite.catalogos,
+    });
+    await request(appLimite)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email: 'limite@ejemplo.co', codigo: '123456' })
+      .expect(404);
+    const respuesta = await request(appLimite)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email: 'LIMITE@EJEMPLO.CO', codigo: '123456' })
+      .expect(429);
+    expect(respuesta.body).toMatchObject({ error: { codigo: 'RATE_LIMIT_EXCEDIDO' } });
+  });
+
+  it('limita confirmaciones por IP con correos distintos', async () => {
+    const configLimite = {
+      ...config,
+      rateLimit: { ...config.rateLimit, confirmPerIdentifier: 10, confirmPerIp: 1 },
+    };
+    const bancoLimite = crearBancoEnMemoria();
+    insertarApiKey(bancoLimite, clave, Object.values(PERMISOS));
+    const authService = createAuthService({
+      usuarios: bancoLimite.usuarios,
+      sesiones: bancoLimite.sesiones,
+      hasher,
+      tokens,
+      correo: createMailService(bancoLimite.correo),
+      codigos: createCodigoConfirmacionService({
+        codigos: bancoLimite.codigos,
+        usuarios: bancoLimite.usuarios,
+        hasher,
+        config: configLimite,
+        logger,
+      }),
+      config: configLimite,
+      logger,
+    });
+    const appLimite = createApp({
+      config: configLimite,
+      logger,
+      authService,
+      tokenService: tokens,
+      apiKeyService: createApiKeyService(bancoLimite.apiKeys),
+      catalogoRepository: bancoLimite.catalogos,
+    });
+    await request(appLimite)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email: 'uno@ejemplo.co', codigo: '123456' })
+      .expect(404);
+    const respuesta = await request(appLimite)
+      .post(`${base}/auth/confirm-email`)
+      .set('X-API-Key', clave)
+      .send({ email: 'dos@ejemplo.co', codigo: '123456' })
+      .expect(429);
+    expect(respuesta.body).toMatchObject({ error: { codigo: 'RATE_LIMIT_EXCEDIDO' } });
   });
 
   it('limita por correo normalizado despues de diez intentos', async () => {

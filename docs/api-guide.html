@@ -211,7 +211,11 @@ HTTP/1.1 201 Created
             <code>codigo_municipio</code> (5 dígitos, debe empezar por el código del departamento) y
             <code>codigo_rol</code> (entero positivo); los tres últimos salen de los endpoints de
             catálogo. Si <code>tyc</code> es false se crea la cuenta sin enviar confirmación; revise
-            también el indicador de envío.
+            también el indicador de envío. Con términos aceptados se envía un código de seis
+            dígitos. Quien integra el envío llama a <code>generar</code> del servicio de códigos de
+            confirmación, que genera y persiste el código, y después lo entrega al servicio de
+            correo. En <code>dbo.codigo_confirmacion</code> se guarda hasheado con argon2id, nunca
+            en texto plano.
           </p>
           <pre><code>POST /backend/dev/v1/auth/register HTTP/1.1
 X-API-Key: CLAVE_EJEMPLO
@@ -253,23 +257,27 @@ HTTP/1.1 200 OK
           <h3>POST /backend/dev/v1/auth/confirm-email</h3>
           <p>
             Alcance <code>auth:confirm-email</code>; cabeceras <code>X-API-Key</code> y
-            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>token</code>,
-            cadena no vacía. También acepta
-            <code>GET /backend/dev/v1/auth/confirm-email?token=...</code> con
-            <code>X-API-Key</code> y sin cuerpo; un navegador que abra el enlace del correo debe
-            proporcionar esa cabecera mediante un cliente o intermediario autorizado.
+            <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code> y
+            <code>codigo</code>, código de seis dígitos recibido por correo. El código viaja en el
+            cuerpo JSON, nunca en la URL. La confirmación activa la cuenta de <code>C</code> a
+            <code>A</code>.
           </p>
           <pre><code>POST /backend/dev/v1/auth/confirm-email HTTP/1.1
 X-API-Key: CLAVE_EJEMPLO
 Content-Type: application/json
 
-{"token":"TOKEN_CONFIRMACION"}
+{"email":"usuario@example.org","codigo":"123456"}
 
 HTTP/1.1 200 OK
 {"message":"Correo confirmado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"A","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:01:00.000Z"}}}</code></pre>
           <p>
-            Errores adicionales: <code>VALIDACION_FALLIDA</code>, <code>TOKEN_INVALIDO</code>,
-            <code>USUARIO_NO_ENCONTRADO</code>, <code>CUENTA_YA_CONFIRMADA</code>.
+            Errores adicionales: <code>VALIDACION_FALLIDA</code>,
+            <code>USUARIO_NO_ENCONTRADO</code> (404), <code>CUENTA_YA_CONFIRMADA</code> (409),
+            <code>CODIGO_CONFIRMACION_NO_EXISTE</code> (404),
+            <code>CODIGO_CONFIRMACION_VENCIDO</code> (400),
+            <code>CODIGO_CONFIRMACION_INVALIDO</code> (400),
+            <code>CODIGO_CONFIRMACION_INVALIDADO</code> (429) y
+            <code>RATE_LIMIT_EXCEDIDO</code> (429).
           </p>
         </section>
         <section>
@@ -480,6 +488,26 @@ HTTP/1.1 200 OK
               <td>Cuenta que ya no está pendiente de confirmación.</td>
             </tr>
             <tr>
+              <td>CODIGO_CONFIRMACION_NO_EXISTE</td>
+              <td>404</td>
+              <td>No existe código de confirmación.</td>
+            </tr>
+            <tr>
+              <td>CODIGO_CONFIRMACION_VENCIDO</td>
+              <td>400</td>
+              <td>Código vencido.</td>
+            </tr>
+            <tr>
+              <td>CODIGO_CONFIRMACION_INVALIDO</td>
+              <td>400</td>
+              <td>Código incorrecto.</td>
+            </tr>
+            <tr>
+              <td>CODIGO_CONFIRMACION_INVALIDADO</td>
+              <td>429</td>
+              <td>Código invalidado por intentos.</td>
+            </tr>
+            <tr>
               <td>TOKEN_INVALIDO</td>
               <td>400 o 401</td>
               <td>Token inválido, vencido o enlace ya utilizado.</td>
@@ -557,12 +585,25 @@ HTTP/1.1 200 OK
               </td>
             </tr>
             <tr>
-              <td>JWT_ACCESS_SECRET, JWT_CONFIRM_SECRET</td>
-              <td>Secretos independientes de firma, mínimo 32 caracteres.</td>
+              <td>JWT_ACCESS_SECRET</td>
+              <td>Secreto de firma del token de acceso, mínimo 32 caracteres.</td>
             </tr>
             <tr>
-              <td>JWT_ACCESS_TTL, JWT_CONFIRM_TTL</td>
-              <td>Vigencia de acceso y confirmación; ejemplos: 15m, 24h.</td>
+              <td>JWT_ACCESS_TTL</td>
+              <td>Vigencia del token de acceso; ejemplo: 15m.</td>
+            </tr>
+            <tr>
+              <td>CONFIRM_CODE_TTL_HOURS, CONFIRM_CODE_MAX_ATTEMPTS</td>
+              <td>
+                Vigencia del código: 24 horas; máximo 5 intentos. El quinto fallo lo invalida y
+                responde 429.
+              </td>
+            </tr>
+            <tr>
+              <td>RATE_LIMIT_CONFIRM_PER_IDENTIFIER, RATE_LIMIT_CONFIRM_PER_IP</td>
+              <td>
+                Confirmación: 10 intentos por correo y 30 por IP en RATE_LIMIT_WINDOW_MINUTES.
+              </td>
             </tr>
             <tr>
               <td>JWT_ISSUER, JWT_AUDIENCE, REFRESH_TOKEN_TTL_DAYS</td>
@@ -594,7 +635,7 @@ HTTP/1.1 200 OK
               </td>
               <td>
                 Transporte, servidor, autenticación y remitente de correo. Console es solo para
-                desarrollo y expone enlaces en el registro.
+                desarrollo y expone contenido de correo en el registro.
               </td>
             </tr>
             <tr>
@@ -614,8 +655,8 @@ HTTP/1.1 200 OK
 curl -X POST "$BASE/installations/register" -H 'Content-Type: application/json' -d '{"nombre":"Cliente móvil","tipo_cliente":"mobile"}'
 # Copie data.api_key en API_KEY en un entorno seguro.
 curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}'
-# Obtenga el token del enlace recibido por correo.
-curl -X POST "$BASE/auth/confirm-email" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d "{\"token\":\"$TOKEN_CONFIRMACION\"}"
+# Obtenga el código recibido por correo.
+curl -X POST "$BASE/auth/confirm-email" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","codigo":"123456"}'
 curl -X POST "$BASE/auth/login" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123"}'
 # Copie data.token_refresh en REFRESH; sustituya el anterior por el nuevo tras renovar.
 curl -X POST "$BASE/auth/refresh" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d "{\"refresh_token\":\"$REFRESH\"}"</code></pre>

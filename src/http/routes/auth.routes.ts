@@ -23,8 +23,13 @@ export const authRoutes = (deps: AppDeps): Router => {
   const limits = crearLimitadores(deps.config);
   router.post('/register', key(PERMISOS.authRegister), limits.registroIp, c['registro']!);
   router.post('/login', key(PERMISOS.authLogin), limits.identificador, limits.loginIp, c['login']!);
-  router.post('/confirm-email', key(PERMISOS.authConfirmEmail), c['confirmar']!);
-  router.get('/confirm-email', key(PERMISOS.authConfirmEmail), c['confirmar']!);
+  router.post(
+    '/confirm-email',
+    key(PERMISOS.authConfirmEmail),
+    limits.confirmacionIdentificador,
+    limits.confirmacionIp,
+    c['confirmar']!,
+  );
   router.post('/logout', key(PERMISOS.authLogout), bearer, c['logout']!);
   router.post('/refresh', key(PERMISOS.authRefresh), c['refresh']!);
   router.get('/me', key(PERMISOS.authMe), bearer, c['perfil']!);

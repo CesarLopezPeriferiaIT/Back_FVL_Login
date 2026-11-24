@@ -1,9 +1,9 @@
 /**
- * Carga y validacion de la configuracion del servicio a partir de variables de entorno.
+ * Load and validate service configuration from environment variables.
  *
- * La validacion falla de forma explicita cuando falta un valor obligatorio o cuando un secreto
- * no cumple la longitud minima, porque los lineamientos exigen no dejar configuraciones por
- * defecto en los ambientes de despliegue.
+ * Validation fails explicitly when a required value is missing or a secret does not meet
+ * the minimum length, because the guidelines prohibit default configuration values
+ * in deployment environments.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
@@ -37,16 +37,15 @@ const envSchema = z.object({
   APP_ENV: ambienteSchema.default('dev'),
   API_VERSION: z.coerce.number().int().positive().default(1),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  PUBLIC_BASE_URL: z.url().default('http://localhost:3000'),
   TYC_VERSION: z.string().min(1).default('1.0.0'),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().min(1).default('15m'),
-  JWT_CONFIRM_SECRET: z.string().min(32),
-  JWT_CONFIRM_TTL: z.string().min(1).default('24h'),
   JWT_ISSUER: z.string().min(1).default('fvl-login'),
   JWT_AUDIENCE: z.string().min(1).default('fvl-clients'),
 
+  CONFIRM_CODE_TTL_HOURS: z.coerce.number().int().positive().default(24),
+  CONFIRM_CODE_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
   DB_SERVER: z.string().min(1),
@@ -67,6 +66,8 @@ const envSchema = z.object({
   RATE_LIMIT_LOGIN_PER_IP: z.coerce.number().int().positive().default(50),
   RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   RATE_LIMIT_REGISTER_PER_IP: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_CONFIRM_PER_IDENTIFIER: z.coerce.number().int().positive().default(10),
+  RATE_LIMIT_CONFIRM_PER_IP: z.coerce.number().int().positive().default(30),
 
   SMTP_HOST: z.string().default(''),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
@@ -84,13 +85,10 @@ export interface AppConfig {
   ambiente: Ambiente;
   apiVersion: number;
   port: number;
-  publicBaseUrl: string;
   tycVersion: string;
   jwt: {
     accessSecret: string;
     accessTtl: string;
-    confirmSecret: string;
-    confirmTtl: string;
     issuer: string;
     audience: string;
   };
@@ -106,6 +104,7 @@ export interface AppConfig {
     connectTimeoutMs: number;
     poolAcquireTimeoutMs: number;
   };
+  confirmacion: { ttlHours: number; maxIntentos: number };
   refresh: { ttlDays: number };
   cors: { allowedOrigins: string[] };
   trustedProxyCidrs: string[];
@@ -114,6 +113,8 @@ export interface AppConfig {
     loginPerIp: number;
     windowMinutes: number;
     registerPerIp: number;
+    confirmPerIdentifier: number;
+    confirmPerIp: number;
   };
   mail: {
     host: string;
@@ -135,13 +136,10 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
   ambiente: valores.APP_ENV,
   apiVersion: valores.API_VERSION,
   port: valores.PORT,
-  publicBaseUrl: valores.PUBLIC_BASE_URL.replace(/\/+$/, ''),
   tycVersion: valores.TYC_VERSION,
   jwt: {
     accessSecret: valores.JWT_ACCESS_SECRET,
     accessTtl: valores.JWT_ACCESS_TTL,
-    confirmSecret: valores.JWT_CONFIRM_SECRET,
-    confirmTtl: valores.JWT_CONFIRM_TTL,
     issuer: valores.JWT_ISSUER,
     audience: valores.JWT_AUDIENCE,
   },
@@ -157,6 +155,10 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     connectTimeoutMs: valores.DB_POOL_CONNECT_TIMEOUT,
     poolAcquireTimeoutMs: valores.DB_POOL_ACQUIRE_TIMEOUT,
   },
+  confirmacion: {
+    ttlHours: valores.CONFIRM_CODE_TTL_HOURS,
+    maxIntentos: valores.CONFIRM_CODE_MAX_ATTEMPTS,
+  },
   refresh: { ttlDays: valores.REFRESH_TOKEN_TTL_DAYS },
   cors: { allowedOrigins: valores.CORS_ALLOWED_ORIGINS },
   trustedProxyCidrs: valores.TRUSTED_PROXY_CIDRS,
@@ -165,6 +167,8 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     loginPerIp: valores.RATE_LIMIT_LOGIN_PER_IP,
     windowMinutes: valores.RATE_LIMIT_WINDOW_MINUTES,
     registerPerIp: valores.RATE_LIMIT_REGISTER_PER_IP,
+    confirmPerIdentifier: valores.RATE_LIMIT_CONFIRM_PER_IDENTIFIER,
+    confirmPerIp: valores.RATE_LIMIT_CONFIRM_PER_IP,
   },
   mail: {
     host: valores.SMTP_HOST,
