@@ -306,3 +306,23 @@ El mecanismo de enlace desaparece, asi que su soporte tambien:
     README y el CHANGELOG.
   - Media: las cabeceras JSDoc de los archivos de dominio modificados estaban en espanol. Se
     normalizaron en ingles, conforme a D12.
+- L11 (2026-11-24) - Verificacion del SQL contra una instancia real y disposicion de la revision
+  nativa:
+  - El DDL y las dos sentencias de seguridad se ejecutaron contra un SQL Server 2022 local en
+    Docker, nunca contra la instancia desplegada, que es compartida con otra aplicacion. El esquema
+    se aplico dos veces para comprobar que es idempotente, y quedaron las cuatro tablas con sus
+    indices.
+  - La activacion condicionada se midio en tres casos: con el codigo vigente afecta una fila y
+    deja la cuenta en `A`; con la cuenta ya activa no afecta ninguna; con el codigo invalidado no
+    afecta ninguna y la cuenta sigue en `C`.
+  - El incremento atomico se midio en cinco intentos sucesivos: el `OUTPUT` devuelve el contador y
+    la marca de invalidacion simultaneos, y el quinto intento deja `intentos = 5` con
+    `invalidado = 1`. No existe el estado intermedio con el contador en cinco y el codigo vigente.
+  - Se corrigio el orden de `OUTPUT` y `WHERE` en la sentencia de incremento: en T-SQL el `OUTPUT`
+    va entre el `SET` y el `WHERE`. El defecto no lo detectaba ninguna prueba con dobles en
+    memoria; lo detecto la revision del escritor.
+  - La revision nativa por riderecha se evaluo con tier alto y `reviewDue` en los dos candidatos,
+    el inicial y el ya corregido. En ambos, el consentimiento fue denegado en el host y no se creo
+    linaje. La revision no se ejecuto y nunca autoriza la entrega.
+  - La plantilla de variables de entorno del repositorio no pudo modificarse porque la politica de
+    seguridad del entorno bloquea esa ruta. Queda como pendiente manual y anotado en el CHANGELOG.
