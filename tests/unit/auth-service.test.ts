@@ -19,6 +19,7 @@ import { crearBancoEnMemoria, insertarUsuario } from '../helpers/in-memory.js';
 import type { BancoEnMemoria } from '../helpers/in-memory.js';
 
 const PASSWORD = 'ClaveSegura1';
+const UBICACION = { codigoDepartamento: '76', codigoMunicipio: '76001', codigoRol: 1 };
 
 const hasher = createPasswordHasher();
 
@@ -73,7 +74,12 @@ const registrarActivo = async (): Promise<{
 describe('confirmacion con codigo', () => {
   it('detecta el vencimiento entre comparacion y activacion', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'vence@ejemplo.co', password: PASSWORD, tyc: true });
+     await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
     const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
     const activar = banco.usuarios.activarConCodigoVigente.bind(banco.usuarios);
     banco.usuarios.activarConCodigoVigente = async (uuid, uuidCodigo) => {
@@ -156,7 +162,12 @@ describe('confirmacion con codigo', () => {
   });
   it('rechaza la segunda confirmacion concurrente como cuenta confirmada', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'carrera@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
     const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
     const activar = banco.usuarios.activarConCodigoVigente.bind(banco.usuarios);
     let liberar = (): void => {};
@@ -201,7 +212,7 @@ describe('confirmacion con codigo', () => {
     });
     const generado = await codigos.generar(usuario.email);
     const marcarUsado = banco.codigos.marcarUsado.bind(banco.codigos);
-    banco.codigos.marcarUsado = async (uuid) => {
+    banco.codigos.marcarUsado = async (uuid: any) => {
       expect(usuario.estado).toBe('A');
       await marcarUsado(uuid);
     };
@@ -223,6 +234,7 @@ describe('registro de cuenta', () => {
       email: 'nuevo@ejemplo.co',
       password: PASSWORD,
       tyc: true,
+      ...UBICACION,
     });
 
     expect(resultado.usuario.estado).toBe('C');
@@ -240,6 +252,7 @@ describe('registro de cuenta', () => {
       email: 'nuevo@ejemplo.co',
       password: PASSWORD,
       tyc: false,
+      ...UBICACION,
     });
 
     expect(resultado.correoConfirmacionEnviado).toBe(false);
@@ -255,6 +268,7 @@ describe('registro de cuenta', () => {
       email: '  Nuevo@Ejemplo.CO ',
       password: PASSWORD,
       tyc: true,
+      ...UBICACION,
     });
 
     expect(banco.estado.usuarios[0]?.email).toBe('nuevo@ejemplo.co');
@@ -263,7 +277,12 @@ describe('registro de cuenta', () => {
   it('almacena la contrasena cifrada y nunca en texto plano', async () => {
     const { banco, authService } = crearServicio();
 
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
 
     expect(banco.estado.usuarios[0]?.passHash).not.toBe(PASSWORD);
     await expect(hasher.verify(banco.estado.usuarios[0]?.passHash ?? '', PASSWORD)).resolves.toBe(
@@ -271,13 +290,39 @@ describe('registro de cuenta', () => {
     );
   });
 
+  it('rechaza un codigo de catalogo inexistente', async () => {
+    const { banco, authService } = crearServicio();
+    banco.usuarios.create = async () => {
+      throw Object.assign(new Error('llave foranea'), { number: 547 });
+    };
+
+    await expect(
+      authService.registrar({
+        email: 'nuevo@ejemplo.co',
+        password: PASSWORD,
+        tyc: true,
+        ...UBICACION,
+      }),
+    ).rejects.toMatchObject({ codigo: 'CATALOGO_INVALIDO', status: 400 });
+  });
+
   it('rechaza un correo ya registrado', async () => {
     const { authService } = crearServicio();
 
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
 
     await expect(
-      authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true }),
+      authService.registrar({
+        email: 'nuevo@ejemplo.co',
+        password: PASSWORD,
+        tyc: true,
+        ...UBICACION,
+      }),
     ).rejects.toMatchObject({ codigo: 'USUARIO_YA_EXISTE', status: 409 });
   });
 });
@@ -285,7 +330,12 @@ describe('registro de cuenta', () => {
 describe('confirmacion de correo', () => {
   it('deja la cuenta activa cuando el codigo es valido', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
 
     const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
     const usuario = await authService.confirmarCodigo({ email: 'nuevo@ejemplo.co', codigo });
@@ -296,7 +346,12 @@ describe('confirmacion de correo', () => {
 
   it('rechaza un codigo incorrecto sin activar ni consumir la cuenta', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+     await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
     const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
     await expect(
       authService.confirmarCodigo({
@@ -310,7 +365,12 @@ describe('confirmacion de correo', () => {
 
   it('rechaza un codigo vencido sin activar ni consumir la cuenta', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
     const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
     const registro = banco.estado.codigos[0];
     if (!registro) throw new Error('Codigo no encontrado');
@@ -325,7 +385,12 @@ describe('confirmacion de correo', () => {
 
   it('rechaza confirmar una cuenta que ya fue confirmada', async () => {
     const { banco, authService } = crearServicio();
-    await authService.registrar({ email: 'nuevo@ejemplo.co', password: PASSWORD, tyc: true });
+    await authService.registrar({
+      email: 'nuevo@ejemplo.co',
+      password: PASSWORD,
+      tyc: true,
+      ...UBICACION,
+    });
     const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
 
     await authService.confirmarCodigo({ email: 'nuevo@ejemplo.co', codigo });

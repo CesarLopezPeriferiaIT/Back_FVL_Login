@@ -30,6 +30,7 @@ const construirApp = (): Express => {
     config,
     logger,
     tokenService: tokens,
+    catalogoRepository: banco.catalogos,
     apiKeyService: createApiKeyService(banco.apiKeys),
     authService: createAuthService({
       usuarios: banco.usuarios,
@@ -72,6 +73,9 @@ describe('documentacion de la API', () => {
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/register');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/auth/me');
     expect(Object.keys(paths)).toContain('/backend/dev/v1/installations/register');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/catalog/get-roles');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/catalog/get-departments');
+    expect(Object.keys(paths)).toContain('/backend/dev/v1/catalog/get-municipalities');
     expect(Object.keys(paths)).toContain('/health');
     expect(Object.keys(paths).filter((ruta) => /password|pin/.test(ruta))).toEqual([]);
   });
@@ -113,7 +117,14 @@ describe('documentacion de la API', () => {
     >;
     const propiedades = esquema['properties'] as Record<string, Record<string, unknown>>;
 
-    expect(Object.keys(propiedades).sort()).toEqual(['email', 'password', 'tyc']);
+    expect(Object.keys(propiedades).sort()).toEqual([
+      'codigo_departamento',
+      'codigo_municipio',
+      'codigo_rol',
+      'email',
+      'password',
+      'tyc',
+    ]);
     expect(propiedades['email']?.['format']).toBe('email');
     expect(propiedades['password']?.['pattern']).toBe('^(?=.*[A-Za-z])(?=.*\\d)\\S{8,72}$');
     expect(propiedades['tyc']?.['type']).toBe('boolean');

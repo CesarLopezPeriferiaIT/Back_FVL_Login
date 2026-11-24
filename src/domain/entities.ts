@@ -19,6 +19,7 @@ export const PERMISOS = {
   authRefresh: 'auth:refresh',
   authLogout: 'auth:logout',
   authMe: 'auth:me',
+  catalogRead: 'catalog:read',
 } as const;
 
 /** Union de los alcances de autorizacion existentes. */
@@ -81,6 +82,26 @@ export interface ApiKey {
   fechaCreacion: Date;
   fechaModificacion: Date;
   ultimoUso: Date | null;
+}
+
+/** Departamento de Colombia segun el DANE; el codigo es texto de 2 digitos ('05'). */
+export interface Departamento {
+  codigo: string;
+  nombre: string;
+}
+
+/** Municipio de Colombia segun el DANE; el codigo es el completo de 5 digitos ('05001'). */
+export interface Municipio {
+  codigo: string;
+  nombre: string;
+  codigoDepartamento: string;
+}
+
+/** Rol del personal de salud con el area de servicio donde se desempena. */
+export interface Rol {
+  codigo: number;
+  nombre: string;
+  areaServicio: string;
 }
 
 /** Vista publica de una cuenta, sin datos sensibles, para las respuestas de la API. */

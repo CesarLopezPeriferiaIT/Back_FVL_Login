@@ -10,9 +10,12 @@
 import type {
   ApiKey,
   CodigoConfirmacion,
+  Departamento,
   EstadoUsuario,
   LogSession,
+  Municipio,
   Permiso,
+  Rol,
   TipoCliente,
   Usuario,
 } from './entities.js';
@@ -46,6 +49,9 @@ export interface NuevoUsuario {
   passHash: string;
   estado: EstadoUsuario;
   tyc: boolean;
+  codigoDepartamento: string;
+  codigoMunicipio: string;
+  codigoRol: number;
 }
 
 /** Acceso a los intentos de inicio de sesion y a las sesiones vivas. */
@@ -76,6 +82,13 @@ export interface ApiKeyRepository {
   findByHash(keyHash: string): Promise<ApiKey | null>;
   create(nuevaApiKey: NuevaApiKey): Promise<ApiKey>;
   registrarUso(uuid: string): Promise<void>;
+}
+
+/** Acceso de solo lectura a los catalogos (geograficos y de roles). */
+export interface CatalogoRepository {
+  listarRoles(): Promise<Rol[]>;
+  listarDepartamentos(): Promise<Departamento[]>;
+  listarMunicipios(codigoDepartamento?: string): Promise<Municipio[]>;
 }
 
 /** Mensaje de correo saliente. */

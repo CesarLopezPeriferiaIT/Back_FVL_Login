@@ -16,7 +16,7 @@ import type { TokenService } from './token-service.js';
 import { generarTokenAleatorio, sha256 } from '../shared/crypto.js';
 import { duracionEnSegundos } from '../shared/duration.js';
 import { normalizarEmail } from '../shared/email.js';
-import { AppError, esClaveDuplicada } from '../shared/errors.js';
+import { AppError, esClaveDuplicada, esLlaveForaneaInvalida } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
 
 /** Numero de intentos fallidos consecutivos que desactivan la cuenta. */
@@ -37,9 +37,19 @@ export interface ResultadoSesion {
   usuario: UsuarioPublico;
 }
 
+/** Datos que la persona entrega al crear su cuenta. */
+export interface DatosRegistro {
+  email: string;
+  password: string;
+  tyc: boolean;
+  codigoDepartamento: string;
+  codigoMunicipio: string;
+  codigoRol: number;
+}
+
 /** Contrato de la aplicacion para las operaciones de autenticacion. */
 export interface AuthService {
-  registrar(params: { email: string; password: string; tyc: boolean }): Promise<ResultadoRegistro>;
+  registrar(params: DatosRegistro): Promise<ResultadoRegistro>;
   iniciarSesion(params: { email: string; password: string }): Promise<ResultadoSesion>;
   confirmarCodigo(params: { email: string; codigo: string }): Promise<UsuarioPublico>;
   renovarSesion(tokenRefresh: string): Promise<ResultadoSesion>;
@@ -119,7 +129,14 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
   };
 
   return {
-    registrar: async ({ email, password, tyc }): Promise<ResultadoRegistro> => {
+    registrar: async ({
+      email,
+      password,
+      tyc,
+      codigoDepartamento,
+      codigoMunicipio,
+      codigoRol,
+    }): Promise<ResultadoRegistro> => {
       const correoNormalizado = normalizarEmail(email);
       const existente = await usuarios.findByEmail(correoNormalizado);
 
@@ -137,10 +154,20 @@ export const createAuthService = (deps: AuthServiceDeps): AuthService => {
           passHash,
           estado: 'C',
           tyc,
+          codigoDepartamento,
+          codigoMunicipio,
+          codigoRol,
         });
       } catch (error) {
         if (esClaveDuplicada(error)) {
           throw new AppError('USUARIO_YA_EXISTE', 'El correo ya se encuentra registrado.', 409);
+        }
+        if (esLlaveForaneaInvalida(error)) {
+          throw new AppError(
+            'CATALOGO_INVALIDO',
+            'El departamento, el municipio o el rol no existe en el catalogo.',
+            400,
+          );
         }
         throw error;
       }

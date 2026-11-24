@@ -8,6 +8,7 @@ import { Router } from 'express';
 import type { AppDeps } from '../../app.js';
 import { responderOk } from '../http-response.js';
 import { authRoutes } from './auth.routes.js';
+import { catalogoRoutes } from './catalogo.routes.js';
 import { installationRoutes } from './installation.routes.js';
 
 export const createRoutes = (deps: AppDeps): Router => {
@@ -21,5 +22,6 @@ export const createRoutes = (deps: AppDeps): Router => {
   );
   router.use('/installations', installationRoutes(deps.apiKeyService));
   router.use('/auth', authRoutes(deps));
+  router.use('/catalog', catalogoRoutes(deps));
   return router;
 };

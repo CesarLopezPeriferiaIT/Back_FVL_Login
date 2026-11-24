@@ -11,6 +11,9 @@ const CODIGO_CLAVE_DUPLICADA = 2601;
 /** Codigo de error de SQL Server para violacion de indice unico. */
 const CODIGO_INDICE_DUPLICADO = 2627;
 
+/** Codigo de error de SQL Server para violacion de llave foranea. */
+const CODIGO_LLAVE_FORANEA = 547;
+
 /**
  * Error de negocio con un codigo estable, un estado HTTP y un mensaje apto para el consumidor.
  */
@@ -48,3 +51,10 @@ export const esClaveDuplicada = (error: unknown): boolean => {
   const codigo = codigoDeError(error);
   return codigo === CODIGO_CLAVE_DUPLICADA || codigo === CODIGO_INDICE_DUPLICADO;
 };
+
+/**
+ * Indica si el error corresponde a una llave foranea sin fila padre, por ejemplo un codigo de
+ * catalogo inexistente.
+ */
+export const esLlaveForaneaInvalida = (error: unknown): boolean =>
+  codigoDeError(error) === CODIGO_LLAVE_FORANEA;

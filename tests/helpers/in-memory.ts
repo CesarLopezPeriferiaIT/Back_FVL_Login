@@ -17,6 +17,7 @@ import type {
 } from '../../src/domain/entities.js';
 import type {
   ApiKeyRepository,
+  CatalogoRepository,
   CodigoConfirmacionRepository,
   LogSessionRepository,
   MailSender,
@@ -42,6 +43,7 @@ export interface BancoEnMemoria {
   sesiones: LogSessionRepository;
   apiKeys: ApiKeyRepository;
   correo: MailSender;
+  catalogos: CatalogoRepository;
   estado: EstadoBanco;
 }
 
@@ -222,7 +224,27 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
     },
   };
 
-  return { codigos, usuarios, sesiones, apiKeys, correo, estado };
+  const catalogos: CatalogoRepository = {
+    listarRoles: async () => [
+      { codigo: 1, nombre: 'Medico General', areaServicio: 'Urgencias' },
+      { codigo: 2, nombre: 'Enfermero', areaServicio: 'Consulta Externa' },
+    ],
+    listarDepartamentos: async () => [
+      { codigo: '05', nombre: 'ANTIOQUIA' },
+      { codigo: '76', nombre: 'VALLE DEL CAUCA' },
+    ],
+    listarMunicipios: async (codigoDepartamento) =>
+      [
+        { codigo: '05001', nombre: 'MEDELLIN', codigoDepartamento: '05' },
+        { codigo: '76001', nombre: 'CALI', codigoDepartamento: '76' },
+        { codigo: '76109', nombre: 'BUENAVENTURA', codigoDepartamento: '76' },
+      ].filter(
+        (municipio) =>
+          codigoDepartamento === undefined || municipio.codigoDepartamento === codigoDepartamento,
+      ),
+  };
+
+  return { codigos, usuarios, sesiones, apiKeys, correo, catalogos, estado };
 };
 
 /**

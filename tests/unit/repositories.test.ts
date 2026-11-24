@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCodigoConfirmacionRepository } from '../../src/infrastructure/database/codigo-confirmacion.repository.js';
 import { createApiKeyRepository } from '../../src/infrastructure/database/api-key.repository.js';
+import { createCatalogoRepository } from '../../src/infrastructure/database/catalogo.repository.js';
 import { createLogSessionRepository } from '../../src/infrastructure/database/log-session.repository.js';
 import type { Database } from '../../src/infrastructure/database/pool.js';
 import { createUsuarioRepository } from '../../src/infrastructure/database/usuario.repository.js';
@@ -173,11 +174,19 @@ describe('mapeo de las filas devueltas', () => {
       passHash: 'hash-argon2',
       estado: 'C',
       tyc: true,
+      codigoDepartamento: '76',
+      codigoMunicipio: '76001',
+      codigoRol: 1,
     });
 
     expect(creado.uuid).toBe('uuid-usuario');
     expect(consultas[0]?.sql).toContain('INSERT INTO dbo.usuario');
     expect(consultas[0]?.parametros.estado).toBe('C');
+    expect(consultas[0]?.parametros).toMatchObject({
+      codigoDepartamento: '76',
+      codigoMunicipio: '76001',
+      codigoRol: 1,
+    });
 
     await expect(
       repo.create({
@@ -186,6 +195,9 @@ describe('mapeo de las filas devueltas', () => {
         passHash: 'hash-argon2',
         estado: 'C',
         tyc: true,
+        codigoDepartamento: '76',
+        codigoMunicipio: '76001',
+        codigoRol: 1,
       }),
     ).rejects.toThrow('No fue posible crear la cuenta de usuario.');
   });
@@ -322,6 +334,44 @@ interface PeticionFalsa {
   query: () => Promise<{ recordset: unknown[] }>;
 }
 
+describe('repositorio de catalogos', () => {
+  it('lista los roles y mapea el area de servicio', async () => {
+    const { pool, consultas } = crearPoolFalso([
+      [{ codigo: 1, nombre: 'Medico General', area_servicio: 'Urgencias' }],
+    ]);
+    expect(await createCatalogoRepository(pool).listarRoles()).toEqual([
+      { codigo: 1, nombre: 'Medico General', areaServicio: 'Urgencias' },
+    ]);
+    expect(consultas[0]?.sql).toContain('dbo.catalogo_rol');
+  });
+
+  it('lista los departamentos ordenados', async () => {
+    const { pool, consultas } = crearPoolFalso([[{ codigo: '05', nombre: 'ANTIOQUIA' }]]);
+    const departamentos = await createCatalogoRepository(pool).listarDepartamentos();
+    expect(departamentos).toEqual([{ codigo: '05', nombre: 'ANTIOQUIA' }]);
+    expect(consultas[0]?.sql).toContain('ORDER BY codigo');
+  });
+
+  it('parametriza el filtro de municipios y mapea el departamento', async () => {
+    const fila = { codigo: '76001', nombre: 'CALI', codigo_departamento: '76' };
+    const { pool, consultas } = crearPoolFalso([[fila], [fila]]);
+    const repo = createCatalogoRepository(pool);
+    const valor = "76' OR 1=1";
+    expect(await repo.listarMunicipios(valor)).toEqual([
+      { codigo: '76001', nombre: 'CALI', codigoDepartamento: '76' },
+    ]);
+    comprobarConsulta(
+      consultas[0],
+      'dbo.catalogo_municipio',
+      'WHERE codigo_departamento = @codigoDepartamento',
+      'codigoDepartamento',
+      valor,
+    );
+    await repo.listarMunicipios();
+    expect(consultas[1]?.sql).not.toContain('WHERE');
+  });
+});
+
 describe('filtro de alcances de la API Key', () => {
   it('conserva todos los alcances validos', async () => {
     const fila = {
@@ -329,7 +379,8 @@ describe('filtro de alcances de la API Key', () => {
       key_hash: 'c'.repeat(64),
       nombre: 'App movil',
       tipo_cliente: 'mobile',
-      permisos: 'auth:register,auth:login,auth:confirm-email,auth:refresh,auth:logout,auth:me',
+      permisos:
+        'auth:register,auth:login,auth:confirm-email,auth:refresh,auth:logout,auth:me,catalog:read',
       revocado: false,
       fecha_creacion: new Date(),
       fecha_modificacion: new Date(),
@@ -345,7 +396,7 @@ describe('filtro de alcances de la API Key', () => {
 
     const apiKey = await repo.findByHash('c'.repeat(64));
 
-    expect(apiKey?.permisos).toHaveLength(6);
+    expect(apiKey?.permisos).toHaveLength(7);
     expect(apiKey?.permisos).toContain('auth:me');
   });
 

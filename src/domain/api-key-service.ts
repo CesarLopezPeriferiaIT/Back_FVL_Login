@@ -29,6 +29,7 @@ const PERMISOS_POR_TIPO_CLIENTE: Record<TipoCliente, Permiso[]> = {
     PERMISOS.authRefresh,
     PERMISOS.authLogout,
     PERMISOS.authMe,
+    PERMISOS.catalogRead,
   ],
   'web-bff': [
     PERMISOS.authRegister,
@@ -37,6 +38,7 @@ const PERMISOS_POR_TIPO_CLIENTE: Record<TipoCliente, Permiso[]> = {
     PERMISOS.authRefresh,
     PERMISOS.authLogout,
     PERMISOS.authMe,
+    PERMISOS.catalogRead,
   ],
   web: [PERMISOS.authMe],
 };

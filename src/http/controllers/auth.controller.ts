@@ -31,7 +31,15 @@ const datosSesion = (resultado: ResultadoSesion): object => ({
 export const crearAuthController = (service: AuthService): Record<string, RequestHandler> => ({
   registro: async (req, res) => {
     const body: unknown = req.body;
-    const resultado = await service.registrar(registroSchema.parse(body));
+    const datos = registroSchema.parse(body);
+    const resultado = await service.registrar({
+      email: datos.email,
+      password: datos.password,
+      tyc: datos.tyc,
+      codigoDepartamento: datos.codigo_departamento,
+      codigoMunicipio: datos.codigo_municipio,
+      codigoRol: datos.codigo_rol,
+    });
     responderOk(
       res,
       'Registro realizado.',
