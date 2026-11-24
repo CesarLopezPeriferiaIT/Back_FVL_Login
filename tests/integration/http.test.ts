@@ -118,15 +118,11 @@ describe('API HTTP', () => {
 
   it('valida registro, credenciales de cliente y cuerpo', async () => {
     const ruta = `${base}/auth/register`;
-    const datos = { email: 'registro@ejemplo.co', password, tyc: true, ...ubicacion };
+    const datos = { email: 'registro@ejemplo.co', tyc: true, ...ubicacion };
     await request(app).post(ruta).send(datos).expect(401);
     await request(app).post(ruta).set('X-API-Key', 'sin-permisos').send(datos).expect(403);
     for (const invalido of [
       { ...datos, email: 'invalido' },
-      { ...datos, password: 'a1' },
-      { ...datos, password: '12345678' },
-      { ...datos, password: 'abcdefgh' },
-      { email: datos.email, password },
       { ...datos, codigo_rol: undefined },
       { ...datos, codigo_municipio: '05001' },
       { ...datos, codigo_departamento: '7' },
@@ -143,7 +139,7 @@ describe('API HTTP', () => {
     await request(app)
       .post(`${base}/auth/register`)
       .set('X-API-Key', clave)
-      .send({ email: 'confirmar@ejemplo.co', password, tyc: true, ...ubicacion })
+      .send({ email: 'confirmar@ejemplo.co', tyc: true, ...ubicacion })
       .expect(201);
     expect(codigoCorreo()).toMatch(/^\d{6}$/);
     expect(
@@ -156,7 +152,7 @@ describe('API HTTP', () => {
     await request(app)
       .post(`${base}/auth/register`)
       .set('X-API-Key', clave)
-      .send({ email, password, tyc: true, ...ubicacion })
+      .send({ email, tyc: true, ...ubicacion })
       .expect(201);
     const codigo = codigoCorreo();
     const respuesta = await request(app)
@@ -179,7 +175,7 @@ describe('API HTTP', () => {
     await request(app)
       .post(`${base}/auth/register`)
       .set('X-API-Key', clave)
-      .send({ email, password, tyc: true, ...ubicacion })
+      .send({ email, tyc: true, ...ubicacion })
       .expect(201);
     const codigo = codigoCorreo();
     const incorrecto = codigo === '000000' ? '000001' : '000000';

@@ -12,7 +12,6 @@ const password = z.string().regex(/^(?=.*[A-Za-z])(?=.*\d)\S{8,72}$/);
 export const registroSchema = z
   .object({
     email,
-    password,
     tyc: z.boolean(),
     codigo_departamento: z.string().regex(/^\d{2}$/),
     codigo_municipio: z.string().regex(/^\d{5}$/),

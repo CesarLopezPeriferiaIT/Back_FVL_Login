@@ -92,7 +92,7 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       const usuario: Usuario = {
         uuid: nuevoUsuario.uuid,
         email: nuevoUsuario.email,
-        passHash: nuevoUsuario.passHash,
+        passHash: '',
         estado: nuevoUsuario.estado,
         fechaCreacion: new Date(),
         fechaModificacion: new Date(),

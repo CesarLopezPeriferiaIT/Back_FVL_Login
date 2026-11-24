@@ -20,7 +20,6 @@ interface Consulta {
 const filaUsuario = (): Record<string, unknown> => ({
   uuid: 'uuid-usuario',
   Email: 'usuario@ejemplo.co',
-  pass_hash: 'hash-argon2',
   estado: 'A',
   fecha_creacion: new Date('2026-01-01T10:00:00.000Z'),
   fecha_modificacion: new Date('2026-01-02T10:00:00.000Z'),
@@ -158,7 +157,6 @@ describe('mapeo de las filas devueltas', () => {
 
     expect(usuario?.uuid).toBe('uuid-usuario');
     expect(usuario?.email).toBe('usuario@ejemplo.co');
-    expect(usuario?.passHash).toBe('hash-argon2');
     expect(usuario?.estado).toBe('A');
     expect(usuario?.tyc).toBe(true);
     expect(usuario?.fechaCreacion).toBeInstanceOf(Date);
@@ -171,7 +169,6 @@ describe('mapeo de las filas devueltas', () => {
     const creado = await repo.create({
       uuid: 'uuid-usuario',
       email: 'usuario@ejemplo.co',
-      passHash: 'hash-argon2',
       estado: 'C',
       tyc: true,
       codigoDepartamento: '76',
@@ -192,7 +189,6 @@ describe('mapeo de las filas devueltas', () => {
       repo.create({
         uuid: 'uuid-usuario',
         email: 'usuario@ejemplo.co',
-        passHash: 'hash-argon2',
         estado: 'C',
         tyc: true,
         codigoDepartamento: '76',

@@ -430,7 +430,6 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
           security: seguridadApiKey,
           requestBody: cuerpoDePeticion(registroSchema, {
             email: 'usuario@ejemplo.com',
-            password: 'ClaveSegura123',
             tyc: true,
             codigo_departamento: '76',
             codigo_municipio: '76001',

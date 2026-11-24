@@ -122,11 +122,9 @@ describe('documentacion de la API', () => {
       'codigo_municipio',
       'codigo_rol',
       'email',
-      'password',
       'tyc',
     ]);
     expect(propiedades['email']?.['format']).toBe('email');
-    expect(propiedades['password']?.['pattern']).toBe('^(?=.*[A-Za-z])(?=.*\\d)\\S{8,72}$');
     expect(propiedades['tyc']?.['type']).toBe('boolean');
   });
 

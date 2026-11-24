@@ -206,22 +206,22 @@ HTTP/1.1 201 Created
           <p>
             Alcance <code>auth:register</code>; cabeceras <code>X-API-Key</code> y
             <code>Content-Type: application/json</code>. Cuerpo obligatorio:
-            <code>email</code> cadena de correo válida, <code>password</code> cadena conforme a la
-            política, <code>tyc</code> booleano, <code>codigo_departamento</code> (2 dígitos),
-            <code>codigo_municipio</code> (5 dígitos, debe empezar por el código del departamento) y
-            <code>codigo_rol</code> (entero positivo); los tres últimos salen de los endpoints de
-            catálogo. Si <code>tyc</code> es false se crea la cuenta sin enviar confirmación; revise
-            también el indicador de envío. Con términos aceptados se envía un código de seis
-            dígitos. Quien integra el envío llama a <code>generar</code> del servicio de códigos de
-            confirmación, que genera y persiste el código, y después lo entrega al servicio de
-            correo. En <code>dbo.codigo_confirmacion</code> se guarda hasheado con argon2id, nunca
-            en texto plano.
+            <code>email</code> cadena de correo válida, <code>tyc</code> booleano,
+            <code>codigo_departamento</code> (2 dígitos), <code>codigo_municipio</code> (5 dígitos,
+            debe empezar por el código del departamento) y <code>codigo_rol</code> (entero
+            positivo); los tres últimos salen de los endpoints de catálogo. Si <code>tyc</code> es
+            false se crea la cuenta sin enviar confirmación; revise también el indicador de envío.
+            Con términos aceptados se envía un código de seis dígitos. Quien integra el envío llama
+            a <code>generar</code> del servicio de códigos de confirmación, que genera y persiste el
+            código, y después lo entrega al servicio de correo. En
+            <code>dbo.codigo_confirmacion</code> se guarda hasheado con argon2id, nunca en texto
+            plano.
           </p>
           <pre><code>POST /backend/dev/v1/auth/register HTTP/1.1
 X-API-Key: CLAVE_EJEMPLO
 Content-Type: application/json
 
-{"email":"usuario@example.org","password":"Ejemplo123","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}
+{"email":"usuario@example.org","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}
 
 HTTP/1.1 201 Created
 {"message":"Registro realizado.","error":null,"code":0,"data":{"usuario":{"uuid":"123e4567-e89b-12d3-a456-426614174000","email":"usuario@example.org","estado":"C","tyc":true,"fechaCreacion":"2026-11-11T12:00:00.000Z","fechaModificacion":"2026-11-11T12:00:00.000Z"},"correo_confirmacion_enviado":true}}</code></pre>
@@ -654,7 +654,7 @@ HTTP/1.1 200 OK
         <pre><code>BASE=http://localhost:3000/backend/dev/v1
 curl -X POST "$BASE/installations/register" -H 'Content-Type: application/json' -d '{"nombre":"Cliente móvil","tipo_cliente":"mobile"}'
 # Copie data.api_key en API_KEY en un entorno seguro.
-curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}'
+curl -X POST "$BASE/auth/register" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","tyc":true,"codigo_departamento":"76","codigo_municipio":"76001","codigo_rol":1}'
 # Obtenga el código recibido por correo.
 curl -X POST "$BASE/auth/confirm-email" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","codigo":"123456"}'
 curl -X POST "$BASE/auth/login" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"email":"usuario@example.org","password":"Ejemplo123"}'
