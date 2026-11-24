@@ -339,3 +339,12 @@ El mecanismo de enlace desaparece, asi que su soporte tambien:
     intento activar la cuenta en paralelo. La activacion espero 8293 milisegundos y afecto cero
     filas, y la cuenta permanecio en estado `C`. Sin los bloqueos, la segunda sesion habria leido la
     instantanea previa a la invalidacion y habria activado la cuenta.
+- L13 (2026-11-24) - El incremento de intentos ya no aplica a un codigo vencido, y el mensaje del
+  error dice la causa real:
+  - La sentencia atomica del incremento incluye la condicion de vigencia en su `WHERE`, de modo que un
+    codigo que vencio durante la comparacion no acumula intentos ni se invalida. Al no poder
+    registrarse el intento, la clasificacion por estado real responde 400 `CODIGO_CONFIRMACION_VENCIDO`.
+  - Verificado por ejecucion contra un SQL Server 2022 local, con las sentencias tomadas del propio
+    repositorio: el incremento sobre un codigo vigente afecta una fila y deja el contador en uno; el
+    mismo incremento sobre un codigo vencido no afecta ninguna fila y deja el contador en uno y el
+    codigo sin invalidar; y la activacion con un codigo vigente afecta una fila.

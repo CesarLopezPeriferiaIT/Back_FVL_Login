@@ -84,7 +84,7 @@ export const createCodigoConfirmacionRepository = (
         `UPDATE dbo.codigo_confirmacion SET intentos = intentos + 1,
         invalidado = CASE WHEN intentos + 1 >= @maxIntentos THEN 1 ELSE invalidado END
         OUTPUT INSERTED.intentos, INSERTED.invalidado
-        WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0`,
+        WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0 AND expira_en > SYSUTCDATETIME()`,
       );
     return result.recordset[0] ?? null;
   },

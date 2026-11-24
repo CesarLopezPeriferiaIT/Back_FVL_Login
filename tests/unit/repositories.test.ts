@@ -306,7 +306,7 @@ describe('repositorio de codigos de confirmacion', () => {
       'invalidado = CASE WHEN intentos + 1 >= @maxIntentos THEN 1 ELSE invalidado END',
     );
     expect(consultas[3]?.sql).toContain(
-      'WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0',
+      'WHERE uuid = @uuid AND usado_en IS NULL AND invalidado = 0 AND expira_en > SYSUTCDATETIME()',
     );
     expect(consultas[3]?.sql).toContain('intentos = intentos + 1');
     expect(consultas[3]?.sql).toContain('OUTPUT INSERTED.intentos');

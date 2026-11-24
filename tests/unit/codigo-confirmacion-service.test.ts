@@ -151,12 +151,13 @@ describe('validar', () => {
     expect(registro.usadoEn).toBeNull();
   });
   it('detecta el vencimiento al registrar un intento fallido', async () => {
-    const { servicio, usuario, banco } = preparar();
+    const { servicio, usuario, banco, hasher, config } = preparar();
+    config.confirmacion.maxIntentos = 1;
     await servicio.generar(usuario.email);
     const registro = banco.estado.codigos[0]!;
-    vi.spyOn(banco.codigos, 'registrarIntentoFallido').mockImplementation(async () => {
+    vi.spyOn(hasher, 'verify').mockImplementation(async () => {
       registro.expiraEn = new Date(0);
-      return null;
+      return false;
     });
     await expect(servicio.validar(usuario.email, '999999')).rejects.toMatchObject({
       codigo: 'CODIGO_CONFIRMACION_VENCIDO',
