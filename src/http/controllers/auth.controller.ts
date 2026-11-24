@@ -52,11 +52,11 @@ export const crearAuthController = (service: AuthService): Record<string, Reques
   },
   login: async (req, res) => {
     const body: unknown = req.body;
-    const resultado = await service.solicitarCodigoAcceso(loginSchema.parse(body));
+    await service.solicitarCodigoAcceso(loginSchema.parse(body));
     responderOk(
       res,
       'Si la cuenta esta registrada y activa, te enviamos un codigo de acceso a tu correo electronico.',
-      { correo_enviado: resultado.correoEnviado },
+      { correo_enviado: true },
     );
   },
   loginCodigo: async (req, res) => {

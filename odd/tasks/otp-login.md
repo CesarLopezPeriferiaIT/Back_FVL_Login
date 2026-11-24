@@ -33,9 +33,12 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
 ### D2. Respuestas y errores de `POST /auth/login`
 
 - El correo se normaliza antes de buscar la cuenta.
-- Si la cuenta no existe: se responde el mismo 200 con `correo_enviado: true`, no se envia correo y se registra
-  `logger.warn`. La respuesta no revela si el correo esta registrado.
-- Si el envio por SMTP falla: se responde 200 con `correo_enviado: false` y se registra `logger.error`.
+- La respuesta es IDENTICAL en toda solicitud aceptada: 200 con `data: { "correo_enviado": true }` y el mensaje
+  "Si la cuenta esta registrada y activa, te enviamos un codigo de acceso a tu correo electronico.". El valor
+  `correo_enviado` es siempre `true` en una solicitud aceptada: no revela si el correo esta registrado ni si el
+  envio fallo en el servidor, porque esa diferencia permitiria enumerar las cuentas registradas. El fallo de
+  entrega se registra en el servidor con `logger.error` y no se expone al cliente.
+- Si la cuenta no existe: no se envia correo y se registra `logger.warn`.
 - Cuenta en estado `C`: 403 `CUENTA_POR_CONFIRMAR`. En estado `I`: 403 `CUENTA_INACTIVA`. En estado `D`:
   403 `CUENTA_DESACTIVADA`.
 - Limite de frecuencia excedido: 429 `RATE_LIMIT_EXCEDIDO`, con el manejador de errores existente.
@@ -184,6 +187,7 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
   unico filtrado admite un solo codigo no consumido por cuenta, por lo que no sirve para el codigo de acceso.
 - L6 (2026-11-12) - T1 entregado en el commit `407ce74` (`feat(auth): persist OTP login codes in dbo.codigo_login`), 582 lineas authored: ese commit es el limite de corte de la primera rebanada de revision. Evidencia: 18 pruebas del repositorio en verde, `typecheck` y `lint` en verde; `npm run format:check` falla unicamente por `.atl/.skill-registry.md` y `.atl/.skill-registry.cache.json`, que ya fallaban antes de este trabajo.
 - L7 (2026-11-12) - T2 entregado en el commit `00cdb8d` (`feat(auth): add login OTP code domain service`), 368 lineas authored: el limite de corte de la segunda rebanada de revision. Evidencia: 10 pruebas del servicio del codigo en verde y 142 del total, `typecheck` y `lint` en verde.
+- L11 (2026-11-12) - Verificacion independiente (gentle-ai-verify) sobre la rama `feature/otp-login`: 151 pruebas y `npm run test:coverage` en verde (sentencias 97.34%, ramas 87.64%, funciones 98.9%, lineas 97.62%) y los 11 puntos de aceptacion verificados salvo dos que requieren SQL Server real (atomicidad del consumo y idempotencia de la migracion). Defecto encontrado por el verificador y corregido: `correo_enviado` distinguia una cuenta activa con fallo de SMTP (`false`) de un correo no registrado (`true`), lo que permitia enumerar cuentas; ahora la respuesta aceptada es siempre identica y el fallo de entrega solo se registra en el servidor.
 - L10 (2026-11-12) - T4 entregado en el commit `6236f9a` (`feat(auth): add OTP login methods to the auth service`): metodos `solicitarCodigoAcceso` e `iniciarSesionConCodigo`, mas la composicion de produccion en `src/index.ts`. Evidencia: 37 pruebas enfocadas del servicio de autenticacion y 154 del total en verde, `typecheck` y `lint` en verde.
 - L9 (2026-11-12) - Decisiones de ejecucion tras tres ciclos de estancamiento del escritor en T4: la dependencia `codigosAcceso` se declara opcional en T4 y obligatoria en T6, para que cada unidad de trabajo sea pequena y el proyecto compile en cada commit. No cambia el comportamiento observable del flujo de inicio de sesion con OTP.
 - L8 (2026-11-12) - Aclaracion de secuencia para el escritor: D7 y T6 se leian como contradictorios. T4 agrega los dos metodos nuevos y conserva el camino legacy de la contrasena; la eliminacion ocurre unicamente en T6. No cambia ninguna especificacion de comportamiento.

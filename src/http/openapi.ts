@@ -479,7 +479,13 @@ export const documentoOpenApi = (config: AppConfig): OpenAPIObject => {
                 'application/json': {
                   schema: envolver({
                     type: 'object',
-                    properties: { correo_enviado: { type: 'boolean' } },
+                    properties: {
+                      correo_enviado: {
+                        type: 'boolean',
+                        description:
+                          'Siempre true en una solicitud aceptada; no revela si el correo esta registrado ni si el envio fallo en el servidor.',
+                      },
+                    },
                     required: ['correo_enviado'],
                   }),
                 },

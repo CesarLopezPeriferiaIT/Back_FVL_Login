@@ -235,8 +235,8 @@ HTTP/1.1 201 Created
           <p>
             Alcance <code>auth:login</code>; cabeceras <code>X-API-Key</code> y
             <code>Content-Type: application/json</code>. Cuerpo obligatorio: <code>email</code>. La
-            respuesta no revela si el correo esta registrado. Si falla el envio SMTP,
-            <code>correo_enviado</code> es false.
+            respuesta de una solicitud aceptada siempre indica <code>correo_enviado: true</code>. No
+            revela si el correo esta registrado ni si el envio fallo en el servidor.
           </p>
           <pre><code>POST /backend/dev/v1/auth/login HTTP/1.1
 X-API-Key: CLAVE_EJEMPLO

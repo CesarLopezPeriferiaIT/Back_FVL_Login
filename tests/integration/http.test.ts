@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
@@ -210,6 +210,35 @@ describe('API HTTP', () => {
       .expect(200);
     expect(respuesta.body as unknown).toMatchObject({ data: { correo_enviado: true } });
     expect(codigoCorreo()).toMatch(/^\d{6}$/);
+  });
+
+  it('oculta el fallo de entrega y la ausencia de cuenta', async () => {
+    const email = 'fallo-login@ejemplo.co';
+    insertarUsuario(banco, { email, estado: 'A' });
+    const envio = vi.spyOn(banco.correo, 'enviar').mockRejectedValue(new Error('SMTP'));
+    try {
+      const registrado = await request(app)
+        .post(`${base}/auth/login`)
+        .set('X-API-Key', clave)
+        .send({ email });
+      const inexistente = await request(app)
+        .post(`${base}/auth/login`)
+        .set('X-API-Key', clave)
+        .send({ email: 'inexistente-login@ejemplo.co' });
+      expect(registrado.status).toBe(200);
+      expect(inexistente.status).toBe(registrado.status);
+      expect(inexistente.body as unknown).toEqual(registrado.body as unknown);
+      expect(registrado.body as unknown).toEqual({
+        message:
+          'Si la cuenta esta registrada y activa, te enviamos un codigo de acceso a tu correo electronico.',
+        error: null,
+        code: 0,
+        data: { correo_enviado: true },
+      });
+      expect(envio).toHaveBeenCalledTimes(1);
+    } finally {
+      envio.mockRestore();
+    }
   });
 
   it('rechaza codigo incorrecto y cuentas no activas', async () => {
