@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 import { describe, expect, it } from 'vitest';
-import { createAuthService, LIMITE_INTENTOS_FALLIDOS } from '../../src/domain/auth-service.js';
+import { createAuthService } from '../../src/domain/auth-service.js';
 import type { AuthService } from '../../src/domain/auth-service.js';
 import type { Usuario } from '../../src/domain/entities.js';
 import { createMailService } from '../../src/domain/mail-service.js';
@@ -22,7 +22,6 @@ import {
 } from '../helpers/in-memory.js';
 import type { BancoEnMemoria } from '../helpers/in-memory.js';
 
-const PASSWORD = 'ClaveSegura1';
 const UBICACION = { codigoDepartamento: '76', codigoMunicipio: '76001', codigoRol: 1 };
 
 const hasher = createPasswordHasher();
@@ -37,7 +36,6 @@ const crearServicio = (): {
   const authService = createAuthService({
     usuarios: banco.usuarios,
     sesiones: banco.sesiones,
-    hasher,
     tokens: createTokenService(config),
     correo: createMailService(banco.correo),
     codigos: createCodigoConfirmacionService({
@@ -74,7 +72,6 @@ const registrarActivo = async (): Promise<{
   const { banco, authService } = crearServicio();
   const usuario = insertarUsuario(banco, {
     email: 'usuario@ejemplo.co',
-    passHash: await hasher.hash(PASSWORD),
     estado: 'A',
   });
 
@@ -137,7 +134,6 @@ describe('confirmacion con codigo', () => {
     const authService = createAuthService({
       usuarios: banco.usuarios,
       sesiones: banco.sesiones,
-      hasher: hasherBloqueante,
       tokens: createTokenService(config),
       correo: createMailService(banco.correo),
       codigos,
@@ -152,7 +148,6 @@ describe('confirmacion con codigo', () => {
     });
     const usuario = insertarUsuario(banco, {
       email: 'carrera@ejemplo.co',
-      passHash: 'hash',
       estado: 'C',
     });
     correcto = (await codigos.generar(usuario.email)).codigo;
@@ -214,7 +209,6 @@ describe('confirmacion con codigo', () => {
     const { banco, authService, config } = crearServicio();
     const usuario = insertarUsuario(banco, {
       email: 'codigo@ejemplo.co',
-      passHash: 'hash',
       estado: 'C',
     });
     const codigos = createCodigoConfirmacionService({
@@ -410,11 +404,13 @@ describe('inicio de sesion con codigo', () => {
     ['D', 'CUENTA_DESACTIVADA'],
   ] as const)('rechaza solicitar codigo para estado %s', async (estado, codigo) => {
     const { banco, authService } = crearServicio();
-    const usuario = insertarUsuario(banco, { email: 'estado@ejemplo.co', passHash: 'hash', estado });
-    await expect(authService.solicitarCodigoAcceso({ email: usuario.email })).rejects.toMatchObject({
-      codigo,
-      status: 403,
-    });
+    const usuario = insertarUsuario(banco, { email: 'estado@ejemplo.co', estado });
+    await expect(authService.solicitarCodigoAcceso({ email: usuario.email })).rejects.toMatchObject(
+      {
+        codigo,
+        status: 403,
+      },
+    );
     expect(banco.estado.correos).toHaveLength(0);
     expect(banco.estado.codigosLogin).toHaveLength(0);
   });
@@ -443,7 +439,9 @@ describe('inicio de sesion con codigo', () => {
       expect(await marcarUsado(uuid)).toBe(true);
       return marcarUsado(uuid);
     };
-    await expect(authService.iniciarSesionConCodigo({ email: usuario.email, codigo })).rejects.toMatchObject({
+    await expect(
+      authService.iniciarSesionConCodigo({ email: usuario.email, codigo }),
+    ).rejects.toMatchObject({
       codigo: 'CODIGO_ACCESO_NO_EXISTE',
       status: 401,
     });
@@ -496,126 +494,13 @@ describe('inicio de sesion con codigo', () => {
   });
 });
 
-describe('inicio de sesion', () => {
-  it('devuelve los tokens y registra la sesion con el refresh hasheado', async () => {
-    const { banco, authService } = await registrarActivo();
-
-    const resultado = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
-
-    expect(resultado.tokenAcceso).toBeTruthy();
-    expect(resultado.tokenRefresh).toBeTruthy();
-    expect(resultado.expiresIn).toBe(900);
-    expect(banco.estado.sesiones).toHaveLength(1);
-    expect(banco.estado.sesiones[0]?.successful).toBe(true);
-    expect(banco.estado.sesiones[0]?.refreshTokenHash).not.toBe(resultado.tokenRefresh);
-  });
-
-  it('no registra intento cuando el correo no existe', async () => {
-    const { banco, authService } = crearServicio();
-
-    await expect(
-      authService.iniciarSesion({ email: 'nadie@ejemplo.co', password: PASSWORD }),
-    ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS', status: 401 });
-
-    expect(banco.estado.sesiones).toHaveLength(0);
-  });
-
-  it('registra el intento fallido cuando la contrasena no coincide', async () => {
-    const { banco, authService } = await registrarActivo();
-
-    await expect(
-      authService.iniciarSesion({ email: 'usuario@ejemplo.co', password: 'ClaveErronea1' }),
-    ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS', status: 401 });
-
-    expect(banco.estado.sesiones).toHaveLength(1);
-    expect(banco.estado.sesiones[0]?.successful).toBe(false);
-    expect(banco.estado.sesiones[0]?.refreshTokenHash).toBeNull();
-  });
-
-  it('desactiva la cuenta al alcanzar el limite de intentos fallidos', async () => {
-    const { banco, authService, usuario } = await registrarActivo();
-
-    for (let intento = 1; intento < LIMITE_INTENTOS_FALLIDOS; intento += 1) {
-      await expect(
-        authService.iniciarSesion({ email: 'usuario@ejemplo.co', password: 'ClaveErronea1' }),
-      ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS', status: 401 });
-    }
-
-    expect(usuario.estado).toBe('A');
-
-    await expect(
-      authService.iniciarSesion({ email: 'usuario@ejemplo.co', password: 'ClaveErronea1' }),
-    ).rejects.toMatchObject({ codigo: 'CUENTA_DESACTIVADA', status: 403 });
-
-    expect(usuario.estado).toBe('D');
-    expect(banco.estado.sesiones.filter((sesion) => !sesion.successful)).toHaveLength(
-      LIMITE_INTENTOS_FALLIDOS,
-    );
-  });
-
-  it('reinicia el contador de intentos despues de un acceso exitoso', async () => {
-    const { authService } = await registrarActivo();
-
-    await expect(
-      authService.iniciarSesion({ email: 'usuario@ejemplo.co', password: 'ClaveErronea1' }),
-    ).rejects.toThrow();
-    await authService.iniciarSesion({ email: 'usuario@ejemplo.co', password: PASSWORD });
-
-    await expect(
-      authService.iniciarSesion({ email: 'usuario@ejemplo.co', password: 'ClaveErronea1' }),
-    ).rejects.toMatchObject({ codigo: 'CREDENCIALES_INVALIDAS', status: 401 });
-  });
-
-  it('bloquea el acceso a una cuenta por confirmar', async () => {
-    const { banco, authService } = crearServicio();
-    insertarUsuario(banco, {
-      email: 'pendiente@ejemplo.co',
-      passHash: await hasher.hash(PASSWORD),
-      estado: 'C',
-    });
-
-    await expect(
-      authService.iniciarSesion({ email: 'pendiente@ejemplo.co', password: PASSWORD }),
-    ).rejects.toMatchObject({ codigo: 'CUENTA_POR_CONFIRMAR', status: 403 });
-  });
-
-  it('bloquea el acceso a una cuenta desactivada', async () => {
-    const { banco, authService } = crearServicio();
-    insertarUsuario(banco, {
-      email: 'desactivada@ejemplo.co',
-      passHash: await hasher.hash(PASSWORD),
-      estado: 'D',
-    });
-
-    await expect(
-      authService.iniciarSesion({ email: 'desactivada@ejemplo.co', password: PASSWORD }),
-    ).rejects.toMatchObject({ codigo: 'CUENTA_DESACTIVADA', status: 403 });
-  });
-
-  it('bloquea el acceso a una cuenta inactiva', async () => {
-    const { banco, authService } = crearServicio();
-    insertarUsuario(banco, {
-      email: 'inactiva@ejemplo.co',
-      passHash: await hasher.hash(PASSWORD),
-      estado: 'I',
-    });
-
-    await expect(
-      authService.iniciarSesion({ email: 'inactiva@ejemplo.co', password: PASSWORD }),
-    ).rejects.toMatchObject({ codigo: 'CUENTA_INACTIVA', status: 403 });
-  });
-});
-
 describe('renovacion y cierre de sesion', () => {
   it('rota el refresh token al renovar la sesion', async () => {
     const { banco, authService } = await registrarActivo();
-    const inicial = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
+    const email = 'usuario@ejemplo.co';
+    await authService.solicitarCodigoAcceso({ email });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const inicial = await authService.iniciarSesionConCodigo({ email, codigo });
 
     const renovada = await authService.renovarSesion(inicial.tokenRefresh);
 
@@ -625,11 +510,11 @@ describe('renovacion y cierre de sesion', () => {
   });
 
   it('invalida el refresh token anterior a la rotacion', async () => {
-    const { authService } = await registrarActivo();
-    const inicial = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
+    const { banco, authService } = await registrarActivo();
+    const email = 'usuario@ejemplo.co';
+    await authService.solicitarCodigoAcceso({ email });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const inicial = await authService.iniciarSesionConCodigo({ email, codigo });
 
     await authService.renovarSesion(inicial.tokenRefresh);
 
@@ -650,10 +535,10 @@ describe('renovacion y cierre de sesion', () => {
 
   it('revoca la sesion al cerrarla', async () => {
     const { banco, authService } = await registrarActivo();
-    const inicial = await authService.iniciarSesion({
-      email: 'usuario@ejemplo.co',
-      password: PASSWORD,
-    });
+    const email = 'usuario@ejemplo.co';
+    await authService.solicitarCodigoAcceso({ email });
+    const codigo = extraerCodigo(banco.estado.correos[0]?.texto ?? '');
+    const inicial = await authService.iniciarSesionConCodigo({ email, codigo });
 
     await authService.cerrarSesion(banco.estado.sesiones[0]?.uuid ?? '');
 

@@ -27,7 +27,6 @@ const preparar = (): {
   const banco = crearBancoEnMemoria();
   const usuario = insertarUsuario(banco, {
     email: 'prueba@ejemplo.com',
-    passHash: 'hash',
     estado: 'C',
   });
   const hasher = createPasswordHasher();

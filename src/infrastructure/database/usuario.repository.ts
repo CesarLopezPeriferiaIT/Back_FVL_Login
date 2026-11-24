@@ -26,8 +26,6 @@ const SELECT_USUARIO = `
 const toUsuario = (row: UsuarioRow): Usuario => ({
   uuid: row.uuid,
   email: row.Email,
-  // La columna pass_hash ya no existe: las cuentas se crean solo con el correo.
-  passHash: '',
   estado: row.estado.trim() as EstadoUsuario,
   fechaCreacion: row.fecha_creacion,
   fechaModificacion: row.fecha_modificacion,

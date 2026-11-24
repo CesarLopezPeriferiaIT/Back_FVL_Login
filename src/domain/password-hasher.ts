@@ -1,15 +1,12 @@
 /**
- * Genera y verifica hashes de contrasena con argon2id.
- *
- * Los lineamientos prohiben almacenar credenciales en texto plano, por lo que la contrasena solo
- * existe en memoria mientras dura la peticion.
+ * Protects one-time access and confirmation codes with argon2id hashes, not passwords.
  *
  * @author Andrés Mora <nelsonmora@periferia-it.com>
  * @version 1.0.0
  */
 import { hash, verify } from '@node-rs/argon2';
 
-/** Contrato de hasheo de contrasenas usado por la capa de aplicacion. */
+/** Contrato de hasheo de codigos usado por la capa de aplicacion. */
 export interface PasswordHasher {
   hash(password: string): Promise<string>;
   verify(passwordHash: string, password: string): Promise<boolean>;
@@ -28,7 +25,7 @@ const ARGUMENTOS_ARGON2 = {
 } as const;
 
 /**
- * Crea el hasheador de contrasenas.
+ * Crea el hasheador de codigos.
  */
 export const createPasswordHasher = (): PasswordHasher => ({
   hash: (password: string): Promise<string> => hash(password, ARGUMENTOS_ARGON2),

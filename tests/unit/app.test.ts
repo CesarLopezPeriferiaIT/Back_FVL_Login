@@ -18,7 +18,7 @@ import { createPasswordHasher } from '../../src/domain/password-hasher.js';
 import { createTokenService } from '../../src/domain/token-service.js';
 import { createLogger } from '../../src/shared/logger.js';
 import { configDePrueba } from '../helpers/config.js';
-import { crearBancoEnMemoria } from '../helpers/in-memory.js';
+import { crearBancoEnMemoria, crearServicioCodigoAccesoDePrueba } from '../helpers/in-memory.js';
 
 const cuerpoServicio = z.object({
   message: z.string(),
@@ -49,7 +49,7 @@ const construirApp = (config: AppConfig): Express => {
     authService: createAuthService({
       usuarios: banco.usuarios,
       sesiones: banco.sesiones,
-      hasher,
+      codigosAcceso: crearServicioCodigoAccesoDePrueba({ banco, hasher, config, logger }),
       codigos: createCodigoConfirmacionService({
         codigos: banco.codigos,
         usuarios: banco.usuarios,

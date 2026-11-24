@@ -19,7 +19,7 @@ const preparar = (): {
   servicio: ReturnType<typeof createCodigoLoginService>;
 } => {
   const banco = crearBancoEnMemoria();
-  const usuario = insertarUsuario(banco, { email: 'prueba@ejemplo.com', passHash: 'hash' });
+  const usuario = insertarUsuario(banco, { email: 'prueba@ejemplo.com' });
   const config = configDePrueba();
   const hasher = createPasswordHasher();
   const servicio = createCodigoLoginService({
@@ -35,7 +35,7 @@ const preparar = (): {
 describe('codigos de acceso', () => {
   it('genera un codigo de seis digitos y almacena un hash', async () => {
     const banco = crearBancoEnMemoria();
-    const usuario = insertarUsuario(banco, { email: 'prueba@ejemplo.com', passHash: 'hash' });
+    const usuario = insertarUsuario(banco, { email: 'prueba@ejemplo.com' });
     const hasher = createPasswordHasher();
     const servicio = createCodigoLoginService({
       codigos: banco.codigosLogin,

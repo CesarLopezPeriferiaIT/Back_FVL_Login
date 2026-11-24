@@ -11,18 +11,21 @@ import { createApp } from '../../src/app.js';
 import { createApiKeyService } from '../../src/domain/api-key-service.js';
 import { createAuthService } from '../../src/domain/auth-service.js';
 import { createCodigoConfirmacionService } from '../../src/domain/codigo-confirmacion-service.js';
-import { createCodigoLoginService } from '../../src/domain/codigo-login-service.js';
 import { PERMISOS } from '../../src/domain/entities.js';
 import { createMailService } from '../../src/domain/mail-service.js';
 import { createPasswordHasher } from '../../src/domain/password-hasher.js';
 import { createTokenService } from '../../src/domain/token-service.js';
 import { createLogger } from '../../src/shared/logger.js';
 import { configDePrueba } from '../helpers/config.js';
-import { crearBancoEnMemoria, insertarApiKey, insertarUsuario } from '../helpers/in-memory.js';
+import {
+  crearBancoEnMemoria,
+  insertarApiKey,
+  insertarUsuario,
+  crearServicioCodigoAccesoDePrueba,
+} from '../helpers/in-memory.js';
 
 const base = '/backend/dev/v1';
 const clave = 'clave-de-integracion';
-const password = 'ClaveSegura1';
 const ubicacion = { codigo_departamento: '76', codigo_municipio: '76001', codigo_rol: 1 };
 const banco = crearBancoEnMemoria();
 const config = configDePrueba();
@@ -40,7 +43,6 @@ const app = createApp({
   authService: createAuthService({
     usuarios: banco.usuarios,
     sesiones: banco.sesiones,
-    hasher,
     codigos: createCodigoConfirmacionService({
       codigos: banco.codigos,
       usuarios: banco.usuarios,
@@ -48,13 +50,7 @@ const app = createApp({
       config,
       logger,
     }),
-    codigosAcceso: createCodigoLoginService({
-      codigos: banco.codigosLogin,
-      usuarios: banco.usuarios,
-      hasher,
-      config,
-      logger,
-    }),
+    codigosAcceso: crearServicioCodigoAccesoDePrueba({ banco, hasher, config, logger }),
     tokens,
     correo: createMailService(banco.correo),
     config,
@@ -71,9 +67,8 @@ const codigoCorreo = (): string => {
 
 describe('API HTTP', () => {
   beforeAll(async () => {
-    const passHash = await hasher.hash(password);
     for (const estado of ['A', 'C', 'I', 'D'] as const) {
-      insertarUsuario(banco, { email: `${estado.toLowerCase()}@ejemplo.co`, passHash, estado });
+      insertarUsuario(banco, { email: `${estado.toLowerCase()}@ejemplo.co`, estado });
     }
   });
 
@@ -354,7 +349,12 @@ describe('API HTTP', () => {
     const authService = createAuthService({
       usuarios: bancoLimite.usuarios,
       sesiones: bancoLimite.sesiones,
-      hasher,
+      codigosAcceso: crearServicioCodigoAccesoDePrueba({
+        banco: bancoLimite,
+        hasher,
+        config: configLimite,
+        logger,
+      }),
       tokens,
       correo: createMailService(bancoLimite.correo),
       codigos: createCodigoConfirmacionService({
@@ -398,7 +398,12 @@ describe('API HTTP', () => {
     const authService = createAuthService({
       usuarios: bancoLimite.usuarios,
       sesiones: bancoLimite.sesiones,
-      hasher,
+      codigosAcceso: crearServicioCodigoAccesoDePrueba({
+        banco: bancoLimite,
+        hasher,
+        config: configLimite,
+        logger,
+      }),
       tokens,
       correo: createMailService(bancoLimite.correo),
       codigos: createCodigoConfirmacionService({
@@ -434,7 +439,7 @@ describe('API HTTP', () => {
 
   it('desactiva la cuenta tras diez codigos incorrectos', async () => {
     const email = 'bloqueo@ejemplo.co';
-    insertarUsuario(banco, { email, estado: 'A', passHash: await hasher.hash(password) });
+    insertarUsuario(banco, { email, estado: 'A' });
     await request(app)
       .post(`${base}/auth/login`)
       .set('X-API-Key', clave)
@@ -472,7 +477,6 @@ describe('API HTTP', () => {
       authService: createAuthService({
         usuarios: banco.usuarios,
         sesiones: banco.sesiones,
-        hasher,
         tokens,
         correo: createMailService(banco.correo),
         codigos: createCodigoConfirmacionService({
@@ -482,9 +486,8 @@ describe('API HTTP', () => {
           config: configLimite,
           logger,
         }),
-        codigosAcceso: createCodigoLoginService({
-          codigos: banco.codigosLogin,
-          usuarios: banco.usuarios,
+        codigosAcceso: crearServicioCodigoAccesoDePrueba({
+          banco,
           hasher,
           config: configLimite,
           logger,

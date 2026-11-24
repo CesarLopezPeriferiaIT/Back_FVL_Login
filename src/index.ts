@@ -57,7 +57,6 @@ const main = async (): Promise<void> => {
     codigos,
     codigosAcceso,
     sesiones: createLogSessionRepository(pool),
-    hasher,
     tokens: createTokenService(config),
     correo: createMailService(createMailSender(config, logger)),
     config,

@@ -154,7 +154,6 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       const usuario: Usuario = {
         uuid: nuevoUsuario.uuid,
         email: nuevoUsuario.email,
-        passHash: '',
         estado: nuevoUsuario.estado,
         fechaCreacion: new Date(),
         fechaModificacion: new Date(),
@@ -314,12 +313,11 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
  */
 export const insertarUsuario = (
   banco: BancoEnMemoria,
-  usuario: Partial<Usuario> & { email: string; passHash: string },
+  usuario: Partial<Usuario> & { email: string },
 ): Usuario => {
   const completo: Usuario = {
     uuid: usuario.uuid ?? randomUUID(),
     email: usuario.email,
-    passHash: usuario.passHash,
     estado: usuario.estado ?? 'A',
     fechaCreacion: usuario.fechaCreacion ?? new Date(),
     fechaModificacion: usuario.fechaModificacion ?? new Date(),

@@ -51,7 +51,6 @@ export interface CodigoAcceso {
 export interface Usuario {
   uuid: string;
   email: string;
-  passHash: string;
   estado: EstadoUsuario;
   fechaCreacion: Date;
   fechaModificacion: Date;
