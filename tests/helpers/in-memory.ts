@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   ApiKey,
   CodigoConfirmacion,
+  CodigoAcceso,
   EstadoUsuario,
   LogSession,
   Usuario,
@@ -19,6 +20,7 @@ import type {
   ApiKeyRepository,
   CatalogoRepository,
   CodigoConfirmacionRepository,
+  CodigoLoginRepository,
   LogSessionRepository,
   MailSender,
   MensajeCorreo,
@@ -30,6 +32,7 @@ import { sha256 } from '../../src/shared/crypto.js';
 /** Estado observable del banco en memoria. */
 export interface EstadoBanco {
   codigos: CodigoConfirmacion[];
+  codigosLogin: CodigoAcceso[];
   usuarios: Usuario[];
   sesiones: LogSession[];
   apiKeys: ApiKey[];
@@ -39,6 +42,7 @@ export interface EstadoBanco {
 /** Conjunto de dobles que representa la persistencia durante una prueba. */
 export interface BancoEnMemoria {
   codigos: CodigoConfirmacionRepository;
+  codigosLogin: CodigoLoginRepository;
   usuarios: UsuarioRepository;
   sesiones: LogSessionRepository;
   apiKeys: ApiKeyRepository;
@@ -51,7 +55,14 @@ export interface BancoEnMemoria {
  * Crea un banco en memoria con los repositorios vacios.
  */
 export const crearBancoEnMemoria = (): BancoEnMemoria => {
-  const estado: EstadoBanco = { codigos: [], usuarios: [], sesiones: [], apiKeys: [], correos: [] };
+  const estado: EstadoBanco = {
+    codigos: [],
+    codigosLogin: [],
+    usuarios: [],
+    sesiones: [],
+    apiKeys: [],
+    correos: [],
+  };
 
   const codigos: CodigoConfirmacionRepository = {
     guardar: async (codigo) => {
@@ -77,6 +88,37 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
     },
     invalidar: async (uuid) => {
       const codigo = estado.codigos.find((c) => c.uuid === uuid);
+      if (codigo) codigo.invalidado = true;
+    },
+  };
+
+  const codigosLogin: CodigoLoginRepository = {
+    guardar: async (codigo) => {
+      estado.codigosLogin.push(codigo);
+    },
+    buscarNoConsumidoPorUsuario: async (uuid) =>
+      [...estado.codigosLogin]
+        .reverse()
+        .find((c) => c.uuidUsuario === uuid && c.usadoEn === null && !c.invalidado) ?? null,
+    buscarUltimoPorUsuario: async (uuid) =>
+      [...estado.codigosLogin].reverse().find((c) => c.uuidUsuario === uuid) ?? null,
+    registrarIntentoFallido: async (uuid, maxIntentos) => {
+      const codigo = estado.codigosLogin.find((c) => c.uuid === uuid);
+      if (!codigo || codigo.usadoEn !== null || codigo.invalidado || codigo.expiraEn <= new Date())
+        return null;
+      codigo.intentos++;
+      if (codigo.intentos >= maxIntentos) codigo.invalidado = true;
+      return { intentos: codigo.intentos, invalidado: codigo.invalidado };
+    },
+    marcarUsado: async (uuid) => {
+      const codigo = estado.codigosLogin.find((c) => c.uuid === uuid);
+      if (!codigo || codigo.usadoEn !== null || codigo.invalidado || codigo.expiraEn <= new Date())
+        return false;
+      codigo.usadoEn = new Date();
+      return true;
+    },
+    invalidar: async (uuid) => {
+      const codigo = estado.codigosLogin.find((c) => c.uuid === uuid);
       if (codigo) codigo.invalidado = true;
     },
   };
@@ -244,7 +286,7 @@ export const crearBancoEnMemoria = (): BancoEnMemoria => {
       ),
   };
 
-  return { codigos, usuarios, sesiones, apiKeys, correo, catalogos, estado };
+  return { codigos, codigosLogin, usuarios, sesiones, apiKeys, correo, catalogos, estado };
 };
 
 /**

@@ -46,6 +46,8 @@ const envSchema = z.object({
 
   CONFIRM_CODE_TTL_HOURS: z.coerce.number().int().positive().default(24),
   CONFIRM_CODE_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  LOGIN_CODE_TTL_MINUTES: z.coerce.number().int().positive().default(10),
+  LOGIN_CODE_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
   DB_SERVER: z.string().min(1),
@@ -68,6 +70,9 @@ const envSchema = z.object({
   RATE_LIMIT_REGISTER_PER_IP: z.coerce.number().int().positive().default(20),
   RATE_LIMIT_CONFIRM_PER_IDENTIFIER: z.coerce.number().int().positive().default(10),
   RATE_LIMIT_CONFIRM_PER_IP: z.coerce.number().int().positive().default(30),
+
+  RATE_LIMIT_LOGIN_CODE_PER_IDENTIFIER: z.coerce.number().int().positive().default(5),
+  RATE_LIMIT_LOGIN_CODE_PER_IP: z.coerce.number().int().positive().default(20),
 
   SMTP_HOST: z.string().default(''),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
@@ -105,6 +110,7 @@ export interface AppConfig {
     poolAcquireTimeoutMs: number;
   };
   confirmacion: { ttlHours: number; maxIntentos: number };
+  loginCode: { ttlMinutes: number; maxAttempts: number };
   refresh: { ttlDays: number };
   cors: { allowedOrigins: string[] };
   trustedProxyCidrs: string[];
@@ -115,6 +121,8 @@ export interface AppConfig {
     registerPerIp: number;
     confirmPerIdentifier: number;
     confirmPerIp: number;
+    loginCodePerIdentifier: number;
+    loginCodePerIp: number;
   };
   mail: {
     host: string;
@@ -159,6 +167,10 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     ttlHours: valores.CONFIRM_CODE_TTL_HOURS,
     maxIntentos: valores.CONFIRM_CODE_MAX_ATTEMPTS,
   },
+  loginCode: {
+    ttlMinutes: valores.LOGIN_CODE_TTL_MINUTES,
+    maxAttempts: valores.LOGIN_CODE_MAX_ATTEMPTS,
+  },
   refresh: { ttlDays: valores.REFRESH_TOKEN_TTL_DAYS },
   cors: { allowedOrigins: valores.CORS_ALLOWED_ORIGINS },
   trustedProxyCidrs: valores.TRUSTED_PROXY_CIDRS,
@@ -169,6 +181,8 @@ const toAppConfig = (valores: z.infer<typeof envSchema>): AppConfig => ({
     registerPerIp: valores.RATE_LIMIT_REGISTER_PER_IP,
     confirmPerIdentifier: valores.RATE_LIMIT_CONFIRM_PER_IDENTIFIER,
     confirmPerIp: valores.RATE_LIMIT_CONFIRM_PER_IP,
+    loginCodePerIdentifier: valores.RATE_LIMIT_LOGIN_CODE_PER_IDENTIFIER,
+    loginCodePerIp: valores.RATE_LIMIT_LOGIN_CODE_PER_IP,
   },
   mail: {
     host: valores.SMTP_HOST,

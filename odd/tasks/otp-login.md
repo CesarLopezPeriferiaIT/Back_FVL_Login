@@ -147,16 +147,16 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
 
 ## Tasks
 
-| ID  | Specs  | Route                                                                                                                                     | Commit |
-| --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| T1  | S1, S2 | U1: persistencia del codigo de acceso: migracion `db/init/06-codigo-login.sql`, puerto, entidad, repositorio SQL y pruebas de repositorio | -      |
-| T2  | S1, S2 | U2: servicio de codigo de acceso: dominio, configuracion, doble en memoria y pruebas unitarias                                            | -      |
-| T3  | S2     | U3: correo del codigo de acceso: plantilla, servicio de correo, transporte y pruebas                                                      | -      |
-| T4  | S1, S2 | U4: servicio de autenticacion con codigo: `solicitarCodigoAcceso`, `iniciarSesionConCodigo` y pruebas unitarias                           | -      |
-| T5  | S1, S2 | U5: contrato HTTP: validadores, controlador, rutas, OpenAPI, limites de frecuencia y pruebas de integracion                               | -      |
-| T6  | S1     | U6: eliminacion de la contrasena: servicio, entidad, repositorio de usuarios, dobles en memoria y pruebas                                 | -      |
-| T7  | S1, S2 | U7: documentacion: guia de API, guia de la aplicacion movil, README y CHANGELOG                                                           | -      |
-| T8  | S1, S2 | U8: verificacion independiente del conjunto y revision nativa de los commits                                                              | -      |
+| ID  | Specs  | Route                                                                                                                                     | Commit  |
+| --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| T1  | S1, S2 | U1: persistencia del codigo de acceso: migracion `db/init/06-codigo-login.sql`, puerto, entidad, repositorio SQL y pruebas de repositorio | 407ce74 |
+| T2  | S1, S2 | U2: servicio de codigo de acceso: dominio, configuracion, doble en memoria y pruebas unitarias                                            | -       |
+| T3  | S2     | U3: correo del codigo de acceso: plantilla, servicio de correo, transporte y pruebas                                                      | -       |
+| T4  | S1, S2 | U4: servicio de autenticacion con codigo: `solicitarCodigoAcceso`, `iniciarSesionConCodigo` y pruebas unitarias                           | -       |
+| T5  | S1, S2 | U5: contrato HTTP: validadores, controlador, rutas, OpenAPI, limites de frecuencia y pruebas de integracion                               | -       |
+| T6  | S1     | U6: eliminacion de la contrasena: servicio, entidad, repositorio de usuarios, dobles en memoria y pruebas                                 | -       |
+| T7  | S1, S2 | U7: documentacion: guia de API, guia de la aplicacion movil, README y CHANGELOG                                                           | -       |
+| T8  | S1, S2 | U8: verificacion independiente del conjunto y revision nativa de los commits                                                              | -       |
 
 ## Log
 
@@ -173,6 +173,7 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
   login; `src/infrastructure/database/usuario.repository.ts:22,72` mapea `passHash: ''`; la tabla
   `dbo.codigo_confirmacion` (`db/init/02-codigo-confirmacion.sql:13`) no tiene columna de proposito y su indice
   unico filtrado admite un solo codigo no consumido por cuenta, por lo que no sirve para el codigo de acceso.
+- L6 (2026-11-12) - T1 entregado en el commit `407ce74` (`feat(auth): persist OTP login codes in dbo.codigo_login`), 582 lineas authored: ese commit es el limite de corte de la primera rebanada de revision. Evidencia: 18 pruebas del repositorio en verde, `typecheck` y `lint` en verde; `npm run format:check` falla unicamente por `.atl/.skill-registry.md` y `.atl/.skill-registry.cache.json`, que ya fallaban antes de este trabajo.
 - L5 (2026-11-12) - Decisiones tecnicas tomadas por el orquestador: el codigo de acceso se entrega por correo
   electronico (unico canal disponible); se reutiliza el alcance `auth:login` en vez de crear uno nuevo; el codigo
   de acceso vive en una tabla nueva en vez de alterar `dbo.codigo_confirmacion`; se conserva la regla de 10
