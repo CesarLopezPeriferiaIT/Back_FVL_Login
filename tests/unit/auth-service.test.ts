@@ -74,8 +74,8 @@ const registrarActivo = async (): Promise<{
 describe('confirmacion con codigo', () => {
   it('detecta el vencimiento entre comparacion y activacion', async () => {
     const { banco, authService } = crearServicio();
-     await authService.registrar({
-      email: 'nuevo@ejemplo.co',
+    await authService.registrar({
+      email: 'vence@ejemplo.co',
       password: PASSWORD,
       tyc: true,
       ...UBICACION,
@@ -163,7 +163,7 @@ describe('confirmacion con codigo', () => {
   it('rechaza la segunda confirmacion concurrente como cuenta confirmada', async () => {
     const { banco, authService } = crearServicio();
     await authService.registrar({
-      email: 'nuevo@ejemplo.co',
+      email: 'carrera@ejemplo.co',
       password: PASSWORD,
       tyc: true,
       ...UBICACION,
@@ -212,7 +212,7 @@ describe('confirmacion con codigo', () => {
     });
     const generado = await codigos.generar(usuario.email);
     const marcarUsado = banco.codigos.marcarUsado.bind(banco.codigos);
-    banco.codigos.marcarUsado = async (uuid: any) => {
+    banco.codigos.marcarUsado = async (uuid: string) => {
       expect(usuario.estado).toBe('A');
       await marcarUsado(uuid);
     };
@@ -346,7 +346,7 @@ describe('confirmacion de correo', () => {
 
   it('rechaza un codigo incorrecto sin activar ni consumir la cuenta', async () => {
     const { banco, authService } = crearServicio();
-     await authService.registrar({
+    await authService.registrar({
       email: 'nuevo@ejemplo.co',
       password: PASSWORD,
       tyc: true,

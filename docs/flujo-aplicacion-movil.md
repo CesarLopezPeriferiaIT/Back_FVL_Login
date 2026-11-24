@@ -137,8 +137,8 @@ Los umbrales y la ventana son configurables; estos son los valores predeterminad
 | Inicio por identificador | 10 intentos fallidos para el mismo correo en 15 minutos activan `429 RATE_LIMIT_EXCEDIDO`.                                                     |
 | Inicio por IP            | 50 intentos por IP en 15 minutos.                                                                                                              |
 | Registro por IP          | 20 registros por IP en 15 minutos.                                                                                                             |
-| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                                              |
-| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                                                      |
+| Confirmación por correo  | 10 intentos (`RATE_LIMIT_CONFIRM_PER_IDENTIFIER`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                     |
+| Confirmación por IP      | 30 intentos (`RATE_LIMIT_CONFIRM_PER_IP`) en 15 minutos por defecto (`RATE_LIMIT_WINDOW_MINUTES`).                                             |
 | Código de confirmación   | Vigencia de 24 horas; el quinto fallo invalida el código y responde 429.                                                                       |
 | Desactivación            | 10 fallos consecutivos dejan la cuenta en `D`; después el login responde `403 CUENTA_DESACTIVADA`. Es un control distinto del límite temporal. |
 | Recuperación de `D`      | Manual en base de datos con `db/scripts/unlock-user.sql`; no existe endpoint administrativo.                                                   |
@@ -147,31 +147,31 @@ Los umbrales y la ventana son configurables; estos son los valores predeterminad
 
 Inspeccione el estado HTTP y `error.codigo`; no deduzca la causa solo del estado.
 
-| Código                           | HTTP      | Acción de la app                                                                       |
-| -------------------------------- | --------- | -------------------------------------------------------------------------------------- |
-| `VALIDACION_FALLIDA`             | 400       | Mostrar los detalles y corregir la entrada.                                            |
-| `USUARIO_YA_EXISTE`              | 409       | Informar que el correo ya está registrado.                                             |
-| `CREDENCIALES_INVALIDAS`         | 401       | Solicitar corrección sin reintentos automáticos.                                       |
-| `TOKEN_INVALIDO`                 | 400 o 401 | En Bearer, comprobar expiración y renovar si procede. |
-| `TOKEN_REQUERIDO`                | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión.             |
-| `SESION_INVALIDA`                | 401       | Descartar los tokens y solicitar inicio de sesión.                                     |
-| `CUENTA_POR_CONFIRMAR`           | 403       | Indicar que debe confirmar el correo.                                                  |
-| `CUENTA_INACTIVA`                | 403       | Indicar que la cuenta está inactiva y solicitar soporte.                               |
-| `CUENTA_DESACTIVADA`             | 403       | Solicitar soporte para desbloqueo manual.                                              |
-| `CUENTA_NO_ACTIVA`               | 403       | En renovación, informar que la cuenta no está activa y solicitar soporte.              |
-| `CUENTA_YA_CONFIRMADA`           | 409       | Informar que la cuenta ya no está pendiente de confirmación.                           |
-| `CODIGO_CONFIRMACION_NO_EXISTE`  | 404       | Informar que no existe código.                                                         |
-| `CODIGO_CONFIRMACION_VENCIDO`    | 400       | Informar que el código venció.                                                         |
-| `CODIGO_CONFIRMACION_INVALIDO`   | 400       | Solicitar corrección del código.                                                       |
-| `CODIGO_CONFIRMACION_INVALIDADO` | 429       | Informar que el código fue invalidado.                                                 |
-| `USUARIO_NO_ENCONTRADO`          | 404       | Informar y solicitar soporte según el flujo.                                           |
-| `API_KEY_REQUERIDA`              | 401       | Comprobar y enviar la clave guardada; registrar instalación si falta.                  |
-| `API_KEY_INVALIDA`               | 401       | Borrar la clave y registrar la instalación de nuevo.                                   |
-| `API_KEY_REVOCADA`               | 401       | Borrar la clave y registrar la instalación de nuevo.                                   |
-| `API_KEY_SIN_PERMISO`            | 403       | Revisar tipo de cliente y alcance con backend.                                         |
-| `RATE_LIMIT_EXCEDIDO`            | 429       | Detener reintentos y solicitar que espere antes de volver a intentar.                  |
-| `CATALOGO_INVALIDO`              | 400       | Volver a elegir departamento, municipio y rol desde los catálogos.                     |
-| `ERROR_INTERNO`                  | 500       | Informar del fallo y permitir reintentar más tarde.                                    |
+| Código                           | HTTP      | Acción de la app                                                           |
+| -------------------------------- | --------- | -------------------------------------------------------------------------- |
+| `VALIDACION_FALLIDA`             | 400       | Mostrar los detalles y corregir la entrada.                                |
+| `USUARIO_YA_EXISTE`              | 409       | Informar que el correo ya está registrado.                                 |
+| `CREDENCIALES_INVALIDAS`         | 401       | Solicitar corrección sin reintentos automáticos.                           |
+| `TOKEN_INVALIDO`                 | 400 o 401 | En Bearer, comprobar expiración y renovar si procede.                      |
+| `TOKEN_REQUERIDO`                | 401       | Adjuntar el acceso si existe; de lo contrario, solicitar inicio de sesión. |
+| `SESION_INVALIDA`                | 401       | Descartar los tokens y solicitar inicio de sesión.                         |
+| `CUENTA_POR_CONFIRMAR`           | 403       | Indicar que debe confirmar el correo.                                      |
+| `CUENTA_INACTIVA`                | 403       | Indicar que la cuenta está inactiva y solicitar soporte.                   |
+| `CUENTA_DESACTIVADA`             | 403       | Solicitar soporte para desbloqueo manual.                                  |
+| `CUENTA_NO_ACTIVA`               | 403       | En renovación, informar que la cuenta no está activa y solicitar soporte.  |
+| `CUENTA_YA_CONFIRMADA`           | 409       | Informar que la cuenta ya no está pendiente de confirmación.               |
+| `CODIGO_CONFIRMACION_NO_EXISTE`  | 404       | Informar que no existe código.                                             |
+| `CODIGO_CONFIRMACION_VENCIDO`    | 400       | Informar que el código venció.                                             |
+| `CODIGO_CONFIRMACION_INVALIDO`   | 400       | Solicitar corrección del código.                                           |
+| `CODIGO_CONFIRMACION_INVALIDADO` | 429       | Informar que el código fue invalidado.                                     |
+| `USUARIO_NO_ENCONTRADO`          | 404       | Informar y solicitar soporte según el flujo.                               |
+| `API_KEY_REQUERIDA`              | 401       | Comprobar y enviar la clave guardada; registrar instalación si falta.      |
+| `API_KEY_INVALIDA`               | 401       | Borrar la clave y registrar la instalación de nuevo.                       |
+| `API_KEY_REVOCADA`               | 401       | Borrar la clave y registrar la instalación de nuevo.                       |
+| `API_KEY_SIN_PERMISO`            | 403       | Revisar tipo de cliente y alcance con backend.                             |
+| `RATE_LIMIT_EXCEDIDO`            | 429       | Detener reintentos y solicitar que espere antes de volver a intentar.      |
+| `CATALOGO_INVALIDO`              | 400       | Volver a elegir departamento, municipio y rol desde los catálogos.         |
+| `ERROR_INTERNO`                  | 500       | Informar del fallo y permitir reintentar más tarde.                        |
 
 ## Reglas para la app móvil
 
