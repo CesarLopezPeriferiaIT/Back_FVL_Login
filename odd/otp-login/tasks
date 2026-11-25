@@ -159,16 +159,16 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
 
 ## Tasks
 
-| ID  | Specs  | Route                                                                                                                                     | Commit  |
-| --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| T1  | S1, S2 | U1: persistencia del codigo de acceso: migracion `db/init/06-codigo-login.sql`, puerto, entidad, repositorio SQL y pruebas de repositorio | 407ce74 |
-| T2  | S1, S2 | U2: servicio de codigo de acceso: dominio, configuracion, doble en memoria y pruebas unitarias                                            | 00cdb8d |
-| T3  | S2     | U3: correo del codigo de acceso: plantilla, servicio de correo, transporte y pruebas                                                      | -       |
-| T4  | S1, S2 | U4: servicio de autenticacion con codigo: `solicitarCodigoAcceso`, `iniciarSesionConCodigo` y pruebas unitarias                           | 6236f9a |
-| T5  | S1, S2 | U5: contrato HTTP: validadores, controlador, rutas, OpenAPI, limites de frecuencia y pruebas de integracion                               | -       |
-| T6  | S1     | U6: eliminacion de la contrasena: servicio, entidad, repositorio de usuarios, dobles en memoria y pruebas                                 | -       |
-| T7  | S1, S2 | U7: documentacion: guia de API, guia de la aplicacion movil, README y CHANGELOG                                                           | -       |
-| T8  | S1, S2 | U8: verificacion independiente del conjunto y revision nativa de los commits                                                              | -       |
+| ID  | Specs  | Route                                                                                                                                     | Commit                    |
+| --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| T1  | S1, S2 | U1: persistencia del codigo de acceso: migracion `db/init/06-codigo-login.sql`, puerto, entidad, repositorio SQL y pruebas de repositorio | 407ce74                   |
+| T2  | S1, S2 | U2: servicio de codigo de acceso: dominio, configuracion, doble en memoria y pruebas unitarias                                            | 00cdb8d                   |
+| T3  | S2     | U3: correo del codigo de acceso: plantilla, servicio de correo, transporte y pruebas                                                      | -                         |
+| T4  | S1, S2 | U4: servicio de autenticacion con codigo: `solicitarCodigoAcceso`, `iniciarSesionConCodigo` y pruebas unitarias                           | 6236f9a                   |
+| T5  | S1, S2 | U5: contrato HTTP: validadores, controlador, rutas, OpenAPI, limites de frecuencia y pruebas de integracion                               | 1715537                   |
+| T6  | S1     | U6: eliminacion de la contrasena: servicio, entidad, repositorio de usuarios, dobles en memoria y pruebas                                 | 80e2472                   |
+| T7  | S1, S2 | U7: documentacion: guia de API, guia de la aplicacion movil, README y CHANGELOG                                                           | bf5050f                   |
+| T8  | S1, S2 | U8: verificacion independiente del conjunto y revision nativa de los commits                                                              | verificacion (sin commit) |
 
 ## Log
 
@@ -187,6 +187,7 @@ electronico. El registro ya no guarda contrasena (`db/init/05-usuario-sin-passwo
   unico filtrado admite un solo codigo no consumido por cuenta, por lo que no sirve para el codigo de acceso.
 - L6 (2026-11-12) - T1 entregado en el commit `407ce74` (`feat(auth): persist OTP login codes in dbo.codigo_login`), 582 lineas authored: ese commit es el limite de corte de la primera rebanada de revision. Evidencia: 18 pruebas del repositorio en verde, `typecheck` y `lint` en verde; `npm run format:check` falla unicamente por `.atl/.skill-registry.md` y `.atl/.skill-registry.cache.json`, que ya fallaban antes de este trabajo.
 - L7 (2026-11-12) - T2 entregado en el commit `00cdb8d` (`feat(auth): add login OTP code domain service`), 368 lineas authored: el limite de corte de la segunda rebanada de revision. Evidencia: 10 pruebas del servicio del codigo en verde y 142 del total, `typecheck` y `lint` en verde.
+- L12 (2026-11-12) - Correccion de la verificacion independiente en el commit `56d2140` (`fix(auth): stop revealing account existence when mail delivery fails`): la respuesta aceptada de la solicitud de codigo es ahora identica en todos los casos, de modo que el valor `correo_enviado` ya no permite enumerar cuentas. La revision nativa por riderecha se evaluo con tier alto y `reviewDue` en verdad, pero el host denego el consentimiento para este candidato: no se creo linaje, la revision no se ejecuto y no autoriza la entrega.
 - L11 (2026-11-12) - Verificacion independiente (gentle-ai-verify) sobre la rama `feature/otp-login`: 151 pruebas y `npm run test:coverage` en verde (sentencias 97.34%, ramas 87.64%, funciones 98.9%, lineas 97.62%) y los 11 puntos de aceptacion verificados salvo dos que requieren SQL Server real (atomicidad del consumo y idempotencia de la migracion). Defecto encontrado por el verificador y corregido: `correo_enviado` distinguia una cuenta activa con fallo de SMTP (`false`) de un correo no registrado (`true`), lo que permitia enumerar cuentas; ahora la respuesta aceptada es siempre identica y el fallo de entrega solo se registra en el servidor.
 - L10 (2026-11-12) - T4 entregado en el commit `6236f9a` (`feat(auth): add OTP login methods to the auth service`): metodos `solicitarCodigoAcceso` e `iniciarSesionConCodigo`, mas la composicion de produccion en `src/index.ts`. Evidencia: 37 pruebas enfocadas del servicio de autenticacion y 154 del total en verde, `typecheck` y `lint` en verde.
 - L9 (2026-11-12) - Decisiones de ejecucion tras tres ciclos de estancamiento del escritor en T4: la dependencia `codigosAcceso` se declara opcional en T4 y obligatoria en T6, para que cada unidad de trabajo sea pequena y el proyecto compile en cada commit. No cambia el comportamiento observable del flujo de inicio de sesion con OTP.
