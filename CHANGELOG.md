@@ -67,7 +67,7 @@ Los cambios relevantes de este proyecto se documentan en este archivo, conforme 
 -Prioritario: implementar el endpoint de reenvío del código de confirmación. Si el código vence o se invalida, la cuenta queda en estado `C` sin forma de obtener uno nuevo por la API.
 -Actualizar la plantilla `.env.example` antes del próximo despliegue: retirar `JWT_CONFIRM_SECRET` y `JWT_CONFIRM_TTL`, agregar `CONFIRM_CODE_TTL_HOURS`, `CONFIRM_CODE_MAX_ATTEMPTS`, `RATE_LIMIT_CONFIRM_PER_IDENTIFIER` y `RATE_LIMIT_CONFIRM_PER_IP`, y retirar `PUBLIC_BASE_URL`, que quedó sin uso.
 
--CAPTCHA en los formularios de inicio de sesión y contraseña (lineamiento 3.8).
+-CAPTCHA en los formularios de solicitud y verificación del código de acceso (lineamiento 3.8).
 -Endpoint administrativo para desbloquear cuentas en estado `D` (control de intentos, lineamiento 1.6.4): actualmente el operador autorizado debe usar el procedimiento `db/scripts/unlock-user.sql` directamente en la base de datos.
 -OAuth 2.0 con PKCE y apertura del navegador del sistema para la aplicación móvil (lineamiento 1.6.3): esta versión usa inicio de sesión propio con refresh token.
 -Autenticación de usuarios de aplicación contra el LDAP institucional (lineamiento 4.4).
